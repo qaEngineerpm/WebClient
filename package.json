@@ -88,7 +88,7 @@
     "angular-sanitize": "^1.7.5",
     "angular-ui-codemirror": "^0.3.0",
     "angular-ui-indeterminate": "^1.0.0",
-    "angular-ui-router": "^0.4.3",
+    "angular-ui-router": "^1.0.22",
     "angular-vs-repeat": "^2.0.9",
     "asmcrypto.js": "^2.3.2",
     "autofill-event": "github:tbosch/autofill-event.git#master",
