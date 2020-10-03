@@ -27,7 +27,7 @@
     "cache-loader": "^2.0.1",
     "chalk": "^2.4.2",
     "component-generator": "github:ProtonMail/componentGenerator#c8b256c5e1d45bddedb36a6efa3c00238e535a1a",
-    "copy-webpack-plugin": "^4.6.0",
+    "copy-webpack-plugin": "^6.2.0",
     "cqc": "^0.6.0",
     "cross-env": "^5.2.0",
     "css-hot-loader": "^1.4.3",
