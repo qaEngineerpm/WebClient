@@ -14,26 +14,7 @@ import { VERIFICATION_STATUS, MIME_TYPES, AES256, MESSAGE_FLAGS } from '../../co
 import { toText } from '../../../helpers/parserHTML';
 import { inlineCss } from '../../../helpers/domHelper';
 import { setBit, clearBit, toggleBit } from '../../../helpers/bitHelper';
-import {
-    isMIME,
-    isInternal,
-    isExternal,
-    isDraft,
-    isReplied,
-    isRepliedAll,
-    isForwarded,
-    isSent,
-    isSentEncrypted,
-    isSentAndReceived,
-    isPGPInline,
-    isPGPEncrypted,
-    isRequestReadReceipt,
-    isAttachPublicKey,
-    isSign,
-    inSigningPeriod,
-    isImported,
-    getDate
-} from '../../../helpers/message';
+import { attachTests, getDate, inSigningPeriod, isSentEncrypted, isImported } from '../../../helpers/message';
 
 const { PLAINTEXT } = MIME_TYPES;
 
@@ -50,23 +31,22 @@ function messageModel(
     publicKeyStore,
     attachedPublicKey,
     addressesModel,
+    readReceiptModel,
     keysModel,
-    readReceiptModel
+    translator
 ) {
-    const I18N = {
-        ENCRYPTION_ERROR: gettextCatalog.getString('Error encrypting message', null, 'Error')
-    };
-    const ENCRYPTED_HEADERS_FILENAME = gettextCatalog.getString(
-        'Encrypted Headers',
-        null,
-        'Encrypted Headers filename'
-    );
+    const I18N = translator(() => ({
+        ENCRYPTION_ERROR: gettextCatalog.getString('Error encrypting message', null, 'Error'),
+        ENCRYPTED_HEADERS_FILENAME: gettextCatalog.getString('Encrypted Headers', null, 'Encrypted Headers filename'),
+        EMPTY: gettextCatalog.getString('Message empty', null, 'Message content if empty')
+    }));
+
     const defaultMessage = {
         ID: '',
         Order: 0,
         Subject: '',
         PasswordHint: '',
-        Unread: 1,
+        Unread: 0,
         Flags: 0,
         Sender: {},
         ToList: [],
@@ -82,7 +62,6 @@ function messageModel(
         ExternalID: null
     };
 
-    const emptyMessage = gettextCatalog.getString('Message empty', null, 'Message content if empty');
     const AUTOREPLY_HEADERS = ['X-Autoreply', 'X-Autorespond', 'X-Autoreply-From', 'X-Mail-Autoreply'];
     const { dispatcher } = dispatchers(['message']);
 
@@ -93,7 +72,6 @@ function messageModel(
 
             this.isAutoReply = AUTOREPLY_HEADERS.some((header) => header in ParsedHeaders);
             this.xOriginalTo = xOriginalTo || ParsedHeaders['X-Original-To'];
-
             return this;
         }
 
@@ -113,14 +91,6 @@ function messageModel(
             this.toggleFlag(MESSAGE_FLAGS.FLAG_RECEIPT_REQUEST);
         }
 
-        isAttachPublicKey() {
-            return isAttachPublicKey(this);
-        }
-
-        isSign() {
-            return isSign(this);
-        }
-
         toggleAttachPublicKey() {
             this.toggleFlag(MESSAGE_FLAGS.FLAG_PUBLIC_KEY);
             // Auto sign when attaching the public key.
@@ -131,44 +101,8 @@ function messageModel(
             this.toggleFlag(MESSAGE_FLAGS.FLAG_SIGN);
         }
 
-        isSent() {
-            return isSent(this);
-        }
-
-        isSentAndReceived() {
-            return isSentAndReceived(this);
-        }
-
-        isInternal() {
-            return isInternal(this);
-        }
-
         isEO() {
             return !!this.Password;
-        }
-
-        isExternal() {
-            return isExternal(this);
-        }
-
-        isDraft() {
-            return isDraft(this);
-        }
-
-        isReplied() {
-            return isReplied(this);
-        }
-
-        isRepliedAll() {
-            return isRepliedAll(this);
-        }
-
-        isForwarded() {
-            return isForwarded(this);
-        }
-
-        isRequestReadReceipt() {
-            return isRequestReadReceipt(this);
         }
 
         getVerificationStatus() {
@@ -188,8 +122,10 @@ function messageModel(
                 if (!inSigningPeriod(this) && isSentEncrypted(this) && !isImported(this)) {
                     return encType[0];
                 }
-
-                return encType[this.verified];
+                const verificationErrorMessage = this.verificationErrorMessage
+                    ? `: ${this.verificationErrorMessage}`
+                    : '';
+                return encType[this.verified] + verificationErrorMessage;
             }
 
             return encType[0];
@@ -202,10 +138,6 @@ function messageModel(
         isSentByMe() {
             const { Address: senderAddress } = this.Sender;
             return addressesModel.getByEmail(senderAddress);
-        }
-
-        isSentEncrypted() {
-            return isSentEncrypted(this);
         }
 
         plainText() {
@@ -240,12 +172,11 @@ function messageModel(
             return (this.Attachments || []).reduce((acc, { Size = 0 } = {}) => acc + +Size, 0);
         }
 
-        countEmbedded() {
+        countEmbedded(html) {
             if (this.isPlainText()) {
                 return 0;
             }
-            const body = this.getDecryptedBody();
-            const testDiv = embeddedUtils.getBodyParser(body);
+            const testDiv = html || embeddedUtils.getBodyParser(this.getDecryptedBody());
 
             return embeddedUtils.extractEmbedded(this.Attachments, testDiv).length;
         }
@@ -307,14 +238,6 @@ function messageModel(
             }
         }
 
-        isPGPEncrypted() {
-            return isPGPEncrypted(this);
-        }
-
-        isPGPInline() {
-            return isPGPInline(this);
-        }
-
         async encryptBody(publicKeys) {
             try {
                 const privateKeys = keysModel.getPrivateKeys(this.From.ID)[0];
@@ -334,12 +257,8 @@ function messageModel(
             }
         }
 
-        isMIME() {
-            return isMIME(this);
-        }
-
         async decryptMIME({ message, messageDate, privateKeys, publicKeys }) {
-            const headerFilename = ENCRYPTED_HEADERS_FILENAME;
+            const headerFilename = I18N.ENCRYPTED_HEADERS_FILENAME;
             const sender = this.Sender.Address;
             const result = await decryptMIMEMessage({
                 message,
@@ -351,10 +270,11 @@ function messageModel(
             });
             try {
                 // extract the message body and attachments
-                const { body = emptyMessage, mimetype = PLAINTEXT } = (await result.getBody()) || {};
+                const { body = I18N.EMPTY, mimetype = PLAINTEXT } = (await result.getBody()) || {};
                 this.MIMEType = mimetype;
 
                 const pmcryptoVerified = await result.verify();
+                const errors = await result.errors();
 
                 const verified =
                     !publicKeys.length && pmcryptoVerified === VERIFICATION_STATUS.SIGNED_AND_INVALID
@@ -364,7 +284,7 @@ function messageModel(
                 const attachments = attachmentConverter(this, await result.getAttachments(), verified);
                 const encryptedSubject = await result.getEncryptedSubject();
 
-                return { message: body, attachments, verified, encryptedSubject };
+                return { message: body, attachments, verified, encryptedSubject, errors };
             } catch (e) {
                 this.MIMEParsingFailed = true;
                 return { message, attachments: [], verified: 0 };
@@ -383,14 +303,14 @@ function messageModel(
                 // Sender can be empty
                 // if so, do not look up public key
                 if (!sender) {
-                    return Promise.resolve(null);
+                    return Promise.resolve([]);
                 }
 
                 return publicKeyStore.get([sender]).then(({ [sender]: list }) => list);
             };
 
             return getPubKeys(sender)
-                .then((list) => {
+                .then((list = []) => {
                     const pubKeys = list.reduce((acc, { key, compromised }) => {
                         !compromised && acc.push(key);
                         return acc;
@@ -413,7 +333,7 @@ function messageModel(
                         messageDate: getDate(this),
                         privateKeys,
                         publicKeys: pubKeys
-                    }).then(({ data, verified: pmcryptoVerified = VERIFICATION_STATUS.NOT_SIGNED }) => {
+                    }).then(({ data, verified: pmcryptoVerified = VERIFICATION_STATUS.NOT_SIGNED, errors }) => {
                         this.decryptedMIME = data;
                         this.decrypting = false;
                         this.hasError = false;
@@ -423,8 +343,17 @@ function messageModel(
                         const verified =
                             !list.length && pmcryptoVerified === signedInvalid ? signedPubkey : pmcryptoVerified;
 
-                        return { message: data, attachments: [], verified };
+                        return { message: data, attachments: [], verified, errors };
                     });
+                })
+                .then((result) => {
+                    this.verificationErrorMessage =
+                        result.errors &&
+                        result.errors
+                            .map(({ message }) => message)
+                            .filter(Boolean)
+                            .join('; ');
+                    return result;
                 })
                 .catch((error) => {
                     this.networkError = error.status === -1;
@@ -467,7 +396,7 @@ function messageModel(
             return attachedPublicKey.extractFromEmail(this);
         }
 
-        async clearTextBody(forceDecrypt = false) {
+        async clearTextBody(forceDecrypt = false, countEmbedded = true) {
             if (this.getDecryptedBody() && !forceDecrypt) {
                 return this.getDecryptedBody();
             }
@@ -496,7 +425,7 @@ function messageModel(
                     this.encryptedSubject = result.encryptedSubject;
                 }
                 this.NumAttachments = this.Attachments.length;
-                this.NumEmbedded = this.countEmbedded();
+                countEmbedded && (this.NumEmbedded = this.countEmbedded());
 
                 this.attachedPublicKey = await this.getAttachedPublicKey();
 
@@ -526,6 +455,9 @@ function messageModel(
                 .then((publicKey) => (this.attachedPublicKey = publicKey));
         }
     }
+
+    // Auto attach test helpers
+    attachTests(Message.prototype);
 
     return (m = {}) => new Message({ ...defaultMessage, ...m });
 }

@@ -7,6 +7,7 @@ import { hasBit } from './bitHelper';
 const {
     FLAG_RECEIVED,
     FLAG_SENT,
+    FLAG_RECEIPT,
     FLAG_RECEIPT_REQUEST,
     FLAG_IMPORTED,
     FLAG_REPLIED,
@@ -34,6 +35,7 @@ const hasMimeType = (type) => ({ MIMEType } = {}) => MIMEType === type;
  */
 export const hasFlag = (flag) => ({ Flags = 0 } = {}) => hasBit(Flags, flag);
 
+export const isReadReceipt = hasFlag(FLAG_RECEIPT);
 export const isRequestReadReceipt = hasFlag(FLAG_RECEIPT_REQUEST);
 export const isImported = hasFlag(FLAG_IMPORTED);
 export const isInternal = hasFlag(FLAG_INTERNAL);
@@ -104,8 +106,8 @@ export async function decrypt({ Body = '' } = {}, password) {
  *   - 3: is inbox and sent (a message sent to yourself)
  * if you move it from trash to inbox, it will acquire both the inbox and sent labels ( 0 and 2 ).
  *
- * @param {String} labelID label id to which it is moved
  * @param {Message} message
+ * @param {String} labelID label id to which it is moved
  * @returns {Array}
  */
 export const getLabelIDsMoved = (message, labelID) => {
@@ -137,3 +139,111 @@ export const getLabelIDsMoved = (message, labelID) => {
  * @return {Date}
  */
 export const getDate = ({ Time = 0 } = {}) => new Date(Time * 1000);
+
+/**
+ * Check if these all messages shared the same sender (by email address)
+ * @param {Array<message>} messages
+ * @return {Boolean}
+ */
+export const sameSender = (messages = []) => {
+    if (!messages.length) {
+        return false;
+    }
+
+    const [{ Sender: firstSender } = {}] = messages;
+    const firstAddress = normalizeEmail(firstSender.Address);
+
+    return (
+        messages.length ===
+        messages.filter(({ Sender = {} }) => {
+            return normalizeEmail(Sender.Address) === firstAddress;
+        }).length
+    );
+};
+
+/**
+ * List of tests we want to attach to a Message
+ * Extend the prototype
+ * @param  {Message.prototype} Message
+ */
+export const attachTests = (prototypeMessage = {}) => {
+    [
+        {
+            name: 'isMIME',
+            callback: isMIME
+        },
+        {
+            name: 'isInternal',
+            callback: isInternal
+        },
+        {
+            name: 'isExternal',
+            callback: isExternal
+        },
+        {
+            name: 'isDraft',
+            callback: isDraft
+        },
+        {
+            name: 'isReplied',
+            callback: isReplied
+        },
+        {
+            name: 'isRepliedAll',
+            callback: isRepliedAll
+        },
+        {
+            name: 'isForwarded',
+            callback: isForwarded
+        },
+        {
+            name: 'isSent',
+            callback: isSent
+        },
+        {
+            name: 'isSentEncrypted',
+            callback: isSentEncrypted
+        },
+        {
+            name: 'isSentAndReceived',
+            callback: isSentAndReceived
+        },
+        {
+            name: 'isPGPInline',
+            callback: isPGPInline
+        },
+        {
+            name: 'isPGPEncrypted',
+            callback: isPGPEncrypted
+        },
+        {
+            name: 'isRequestReadReceipt',
+            callback: isRequestReadReceipt
+        },
+        {
+            name: 'isAttachPublicKey',
+            callback: isAttachPublicKey
+        },
+        {
+            name: 'isSign',
+            callback: isSign
+        },
+        {
+            name: 'inSigningPeriod',
+            callback: inSigningPeriod
+        },
+        {
+            name: 'isImported',
+            callback: isImported
+        },
+        {
+            name: 'getDate',
+            callback: getDate
+        }
+    ].forEach(({ name, callback }) => {
+        // We can't use fn.name as post minify the name will change.
+        prototypeMessage[name] = function() {
+            return callback(this);
+        };
+    });
+};

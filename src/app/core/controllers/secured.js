@@ -7,7 +7,7 @@ function SecuredController(
     addressWithoutKeysManager,
     AppModel,
     authentication,
-    blackFridayHandler,
+    isDelinquent,
     cacheCounters,
     contactCache,
     desktopNotifications,
@@ -17,8 +17,10 @@ function SecuredController(
     mailSettingsModel,
     resurrecter,
     versionInfoModel,
+    blackFridayHandler,
     prepareDraft,
-    userType
+    userType,
+    setPaidCookie
 ) {
     const { on, unsubscribe } = dispatchers();
     $scope.mobileMode = AppModel.is('mobile');
@@ -36,9 +38,7 @@ function SecuredController(
     };
 
     setUserType();
-
-    AppModel.set('isLoggedIn', true); // Shouldn't be there
-    AppModel.set('isLocked', false); // Shouldn't be there
+    blackFridayHandler();
 
     resurrecter.init();
     const bindAppValue = (key, { value }) => $scope.$applyAsync(() => ($scope[key] = value));
@@ -51,24 +51,21 @@ function SecuredController(
     desktopNotifications.request();
 
     // Enable hotkeys
-    if (mailSettingsModel.get('Hotkeys') === 1) {
-        hotkeys.bind();
-    } else {
-        hotkeys.unbind();
-    }
+    hotkeys.init(mailSettingsModel.get('Hotkeys') === 1);
 
     eventManager.initialize();
-    // Initialize counters for conversation (total and unread)
-    cacheCounters.query();
+    if (!isDelinquent.getIsDelinquent()) {
+        // Initialize counters for conversation (total and unread)
+        cacheCounters.query();
+    }
     // Preload the contact list
     !$state.includes('secured.contacts') && contactCache.load();
     addressWithoutKeysManager.manage().catch(_.noop);
 
     prepareDraft.init();
 
-    blackFridayHandler();
-
     versionInfoModel();
+    setPaidCookie();
 
     on('updateUser', () => {
         $scope.$applyAsync(() => {
@@ -80,7 +77,7 @@ function SecuredController(
     $scope.idDefined = () => $state.params.id && $state.params.id.length > 0;
     $scope.isMobile = () => AppModel.is('mobile');
     $scope.$on('$destroy', () => {
-        hotkeys.unbind();
+        hotkeys.reset();
         unsubscribe();
     });
 }

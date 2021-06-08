@@ -1,11 +1,17 @@
-import transformEscape from '../../../../src/app/message/helpers/transformEscape';
+import transformEscape, { attachBase64Parser } from '../../../../src/app/message/helpers/transformEscape';
 
 describe('transformEscape', () => {
     let getAttribute;
 
     const USER_INJECT = 'user.inject';
+
+    const babase64 = `src="data:image/jpg;base64,iVBORw0KGgoAAAANSUhEUgAABoIAAAVSCAYAAAAisOk2AAAMS2lDQ1BJQ0MgUHJv
+    ZmlsZQAASImVVwdYU8kWnltSSWiBUKSE3kQp0qWE0CIISBVshCSQUGJMCCJ2FlkF
+    1y4ioK7oqoiLrgWQtaKudVHs/aGIysq6WLCh8iYF1tXvvfe9831z758z5/ynZO69
+    MwDo1PKk0jxUF4B8SYEsITKUNTEtnUXqAgSgD1AwGozk8eVSdnx8DIAydP+nvLkO"`;
+
     const DOM = `<section>
-    <svg width="5cm" height="4cm" version="1.1"
+    <svg id="svigi" width="5cm" height="4cm" version="1.1"
          xmlns="http://www.w3.org/2000/svg" xmlns:xlink= "http://www.w3.org/1999/xlink">
         <image xlink:href="firefox.jpg" x="0" y="0" height="50px" width="50px" />
         <image xlink:href="chrome.jpg" x="0" y="0" height="50px" width="50px" />
@@ -23,14 +29,17 @@ describe('transformEscape', () => {
     </video>
     <img src="mon-image.jpg" srcset="mon-imageHD.jpg 2x" width="" height="" alt="">
     <img src="lol-image.jpg" srcset="lol-imageHD.jpg 2x" width="" height="" alt="">
+    <img data-src="lol-image.jpg" width="" height="" alt="">
     <a href="lol-image.jpg">Alll</a>
     <a href="jeanne-image.jpg">Alll</a>
     <div background="jeanne-image.jpg">Alll</div>
     <div background="jeanne-image2.jpg">Alll</div>
+
+    <img id="babase64" ${babase64}/>
 </section>`;
 
     const CODE_HTML_HIGHLIGHT = `
-    <div style="box-sizing: border-box;white-space: normal;" class="pre"><div style="box-sizing: border-box;color: #fff;max-width: 100%;font-size: 16px;line-height: 1.3;" class="code"><span style="box-sizing: border-box;color: #DDDDDF;" class="nt">&lt;script</span> <span style="box-sizing: border-box;color: #84868B;" class="na">src="</span><span style="box-sizing: border-box;color: #68BEA2;" class="s"><span class="s">https<span>://</span>use.fontawesome<span>.</span>com/f0d8991ea9.js</span><span style="box-sizing: border-box;color: #84868B;" class="na">"</span><span style="box-sizing: border-box;color: #DDDDDF;" class="nt">&gt;</span><span style="box-sizing: border-box;color: #DDDDDF;" class="nt">&lt;/script&gt;</span></span></div></div><div class="pre"></div>
+    <div style="white-space: normal;" class="pre"><div style="color: #fff;max-width: 100%;font-size: 16px;line-height: 1.3;" class="code"><span style="color: #DDDDDF;" class="nt">&lt;script</span> <span style="color: #84868B;" class="na">src="</span><span style="color: #68BEA2;" class="s"><span class="s">https<span>://</span>use.fontawesome<span>.</span>com/f0d8991ea9.js</span><span style="color: #84868B;" class="na">"</span><span style="color: #DDDDDF;" class="nt">&gt;</span><span style="color: #DDDDDF;" class="nt">&lt;/script&gt;</span></span></div></div><div class="pre"></div>
 `;
     const HTML_LINKS = `<div>
   <a href="http://www.dewdwesrcset-dewdw.com/?srcset=de&srcset=Dewdwe"></a>
@@ -112,12 +121,83 @@ describe('transformEscape', () => {
 
     let output;
 
+    const cache = {
+        map: Object.create(null),
+        put(key, value) {
+            this.map[key] = value;
+        },
+        get(key) {
+            return this.map[key];
+        },
+        size() {
+            return Object.keys(this.map);
+        },
+        readMap() {
+            return this.map;
+        },
+        removeAll() {
+            this.map = Object.create(null);
+        }
+    };
+
+    describe('Replace base64', () => {
+        describe('No syntax hightlighting', () => {
+            beforeEach(() => {
+                cache.removeAll();
+                output = transformEscape(DOM, {
+                    activeCache: true,
+                    cache
+                });
+            });
+
+            it('should remove the base64 from src', () => {
+                expect(output.querySelector('#babase64').src).toBe('');
+                expect(output.querySelector('#babase64').hasAttribute('src')).toBe(false);
+            });
+
+            it('should add a custom marker attribute', () => {
+                expect(output.querySelector('#babase64').hasAttribute('data-proton-replace-base')).toBe(true);
+                expect(output.querySelector('#babase64').getAttribute('data-proton-replace-base')).not.toBe('');
+            });
+
+            it('should add a custom marker attribute with a hash available inside the cache', () => {
+                const [ hash ] = Object.keys(cache.readMap());
+                expect(output.querySelector('#babase64').getAttribute('data-proton-replace-base')).toBe(hash);
+                expect(cache.get(hash)).toBe(babase64);
+            });
+
+            it('should attach the base64', () => {
+                const html = attachBase64Parser(output, cache);
+                const dom = document.createElement('DIV');
+                dom.innerHTML = html;
+
+                expect(dom.querySelector('#babase64').hasAttribute('data-proton-replace-base')).toBe(false);
+                expect(dom.querySelector('#babase64').hasAttribute('src')).toBe(true);
+
+                const value = babase64.replace(/^src="/, '').slice(0, 20);
+                expect(dom.querySelector('#babase64').src.startsWith(value)).toBe(true);
+            });
+        });
+
+        describe('Syntax hightlighting', () => {
+            beforeEach(() => {
+                output = transformEscape(CODE_HTML_HIGHLIGHT, {
+                    activeCache: false
+                });
+            });
+
+            it('should not escape inside a <code> tag', () => {
+                expect(output.innerHTML).not.toMatch(/proton-/);
+            });
+        });
+    });
+
     describe('Escape <pre>', () => {
         describe('No syntax hightlighting', () => {
             beforeEach(() => {
-                output = transformEscape(document.createElement('DIV'), {
-                    content: CODE_HTML
-                });
+                output = transformEscape(CODE_HTML, {
+                    activeCache: false
+                }).querySelector('body');
             });
 
             it('should escape inside a <code> tag', () => {
@@ -125,17 +205,15 @@ describe('transformEscape', () => {
             });
 
             it('should not escape text inside a <code> tag', () => {
-                const demo = transformEscape(document.createElement('DIV'), {
-                    content: CODE_TEXT
-                });
+                const demo = transformEscape(CODE_TEXT).querySelector('body');
                 expect(demo.innerHTML).toBe(CODE_TEXT);
             });
         });
 
         describe('Syntax hightlighting', () => {
             beforeEach(() => {
-                output = transformEscape(document.createElement('DIV'), {
-                    content: CODE_HTML_HIGHLIGHT
+                output = transformEscape(CODE_HTML_HIGHLIGHT, {
+                    activeCache: false
                 });
             });
 
@@ -147,8 +225,8 @@ describe('transformEscape', () => {
 
     describe('Escape everything with proton-', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: DOM
+            output = transformEscape(DOM, {
+                activeCache: false
             });
             getAttribute = (attribute) => {
                 return [].slice.call(output.querySelectorAll(`[${attribute}]`));
@@ -164,6 +242,11 @@ describe('transformEscape', () => {
             it('should add the prefix before src', () => {
                 const list = getAttribute('proton-src');
                 expect(list.length).toBe(5);
+            });
+
+            it('should add the prefix before data-src', () => {
+                const list = getAttribute('proton-data-src');
+                expect(list.length).toBe(1);
             });
 
             it('should add the prefix before srcset', () => {
@@ -184,6 +267,11 @@ describe('transformEscape', () => {
             it('should add the prefix for SVG', () => {
                 const list = output.querySelectorAll('proton-svg');
                 expect(list.length).toBe(1);
+            });
+
+            it('should add the prefix for xlink:href', () => {
+                const list = output.innerHTML.match(/proton-xlink:href/g);
+                expect(list.length).toBe(2);
             });
         });
 
@@ -222,8 +310,8 @@ describe('transformEscape', () => {
 
     describe('No escape inside URL', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: HTML_LINKS
+            output = transformEscape(HTML_LINKS, {
+                activeCache: false
             });
         });
 
@@ -234,8 +322,8 @@ describe('transformEscape', () => {
 
     describe('No escape TXT', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: TEXT
+            output = transformEscape(TEXT, {
+                activeCache: false
             });
         });
 
@@ -246,8 +334,8 @@ describe('transformEscape', () => {
 
     describe('No escape EDGE_CASE', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: EDGE_CASE
+            output = transformEscape(EDGE_CASE, {
+                activeCache: false
             });
         });
 
@@ -258,8 +346,8 @@ describe('transformEscape', () => {
 
     describe('No escape EDGE_CASE2', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: EDGE_CASE_2
+            output = transformEscape(EDGE_CASE_2, {
+                activeCache: false
             });
         });
 
@@ -270,12 +358,10 @@ describe('transformEscape', () => {
 
     describe('No double escape', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: DOM
+            output = transformEscape(DOM, {
+                activeCache: false
             });
-            output = transformEscape(document.createElement('DIV'), {
-                content: output.innerHTML
-            });
+            output = transformEscape(output.innerHTML);
         });
 
         it('should not double escape attributes', () => {
@@ -285,16 +371,16 @@ describe('transformEscape', () => {
 
     describe('Escape BACKGROUND_URL', () => {
         const getList = (input) => {
-            return input.innerHTML
+            return input.querySelector('body').innerHTML
                 .split('\n')
                 .map((s) => s.trim())
                 .filter(Boolean);
         };
 
         it('should escape all', () => {
-            const html = transformEscape(document.createElement('DIV'), {
-                content: BACKGROUND_URL
-            });
+            const html = transformEscape(BACKGROUND_URL, {
+                activeCache: false
+            })
             const list = getList(html);
 
             list.forEach((key) => {
@@ -303,8 +389,8 @@ describe('transformEscape', () => {
         });
 
         it('should escape all encoded url', () => {
-            const html = transformEscape(document.createElement('DIV'), {
-                content: BACKGROUND_URL_ESCAPED
+            const html = transformEscape(BACKGROUND_URL_ESCAPED, {
+                activeCache: false
             });
             const list = getList(html);
 
@@ -313,15 +399,15 @@ describe('transformEscape', () => {
             });
         });
         it('should escape encoded url with escape \\r', () => {
-            const html = transformEscape(document.createElement('DIV'), {
-                content: BACKGROUND_URL_ESCAPED_WTF
+            const html = transformEscape(BACKGROUND_URL_ESCAPED_WTF, {
+                activeCache: false
             });
             expect(html.innerHTML).toMatch(/proton-/);
         });
 
         it('should escape encoded url with escape standard wtf', () => {
-            const html = transformEscape(document.createElement('DIV'), {
-                content: BACKGROUND_URL_ESCAPED_WTF2
+            const html = transformEscape(BACKGROUND_URL_ESCAPED_WTF2, {
+                activeCache: false
             });
             const list = getList(html);
 
@@ -331,8 +417,8 @@ describe('transformEscape', () => {
         });
 
         it('should escape octal and hex encoded urls with escape', () => {
-            const html = transformEscape(document.createElement('DIV'), {
-                content: BACKGROUND_URL_OCTAL_HEX_ENCODING
+            const html = transformEscape(BACKGROUND_URL_OCTAL_HEX_ENCODING, {
+                activeCache: false
             });
             const list = getList(html);
 
@@ -342,18 +428,18 @@ describe('transformEscape', () => {
         });
 
         it('should not break the HTML', () => {
-            const html = transformEscape(document.createElement('DIV'), {
-                content: EX_URL
-            });
+            const html = transformEscape(EX_URL, {
+                activeCache: false
+            }).querySelector('body');
             expect(html.innerHTML).toEqual(EX_URL_CLEAN);
         });
     });
 
     describe('no scape BACKGROUND_URL -> user.inject', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: BACKGROUND_URL,
-                action: USER_INJECT
+            output = transformEscape(BACKGROUND_URL, {
+                action: USER_INJECT,
+                activeCache: false
             });
         });
 
@@ -362,9 +448,9 @@ describe('transformEscape', () => {
         });
 
         it('should not break the HTML', () => {
-            const html = transformEscape(document.createElement('DIV'), {
-                content: EX_URL,
-                action: USER_INJECT
+            const html = transformEscape(EX_URL, {
+                action: USER_INJECT,
+                activeCache: false
             });
             expect(html.innerHTML).not.toMatch(/proton-/);
         });
@@ -372,8 +458,8 @@ describe('transformEscape', () => {
 
     describe('Ǹot escape BACKGROUND_URL', () => {
         beforeEach(() => {
-            output = transformEscape(document.createElement('DIV'), {
-                content: BACKGROUND_URL_SAFE
+            output = transformEscape(BACKGROUND_URL_SAFE, {
+                activeCache: false
             });
         });
 

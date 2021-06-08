@@ -179,16 +179,21 @@ function messageBuilder(
     gettextCatalog,
     mailSettingsModel,
     messageModel,
+    pgpMimeAttachments,
     prepareContent,
     signatureBuilder,
+    translator,
     textToHtmlMail
 ) {
-    const { reply, replyAll, forward, newCopy } = createMessage(addressesModel.get(), {
-        RE_PREFIX: gettextCatalog.getString('Re:', null, 'Message'),
-        FW_PREFIX: gettextCatalog.getString('Fw:', null, 'Message')
-    });
+    const { reply, replyAll, forward, newCopy } = createMessage(
+        addressesModel.get(),
+        translator(() => ({
+            RE_PREFIX: gettextCatalog.getString('Re:', null, 'Message'),
+            FW_PREFIX: gettextCatalog.getString('Fw:', null, 'Message')
+        }))
+    );
 
-    const I18N = {
+    const I18N = translator(() => ({
         TITLE_ENCRYPTED_SUBJECT: gettextCatalog.getString('Encrypted Subject', null, 'Subject'),
         YES_CONFIRM: gettextCatalog.getString('Yes', null, 'Use encrypted subject as subject'),
         NO_CONFIRM: gettextCatalog.getString('No', null, 'Use unencrypted subject as subject'),
@@ -202,7 +207,7 @@ function messageBuilder(
                 'Ask user to use encrypted subject'
             );
         }
-    };
+    }));
 
     /**
      * Convert string content to HTML
@@ -281,8 +286,11 @@ function messageBuilder(
         newMsg.Body = currentMsg.Body; // We use the existing Body to speed up the draft request logic
 
         /* add inline images as attachments */
-        newMsg.Attachments = pickAttachements(currentMsg, action);
+        const attachments = pickAttachements(currentMsg, action);
         newMsg.NumEmbedded = 0;
+
+        newMsg.Attachments = pgpMimeAttachments.clean(attachments);
+        newMsg.pgpMimeAttachments = pgpMimeAttachments.filter(attachments);
 
         if (action !== 'new') {
             const previously = () => {
@@ -338,6 +346,7 @@ function messageBuilder(
             Subject: '',
             PasswordHint: '',
             ExpirationTime: 0,
+            ExpiresIn: 0,
             From: sender,
             uploading: 0,
             toFocussed: false,
@@ -358,6 +367,7 @@ function messageBuilder(
         setDefaultsParams(newMsg);
         newMsg = await builder(action, currentMsg, newMsg);
         newMsg.setDecryptedBody(signatureBuilder.insert(newMsg, { action, isAfter }));
+
         return newMsg;
     }
 

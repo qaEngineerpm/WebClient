@@ -14,6 +14,7 @@ import key from './models/key';
 import label from './models/label';
 import logs from './models/logs';
 import payment from './models/payment';
+import feature from './models/feature';
 import paymentCache from './models/paymentCache';
 import reset from './models/reset';
 import user from './models/user';
@@ -24,13 +25,18 @@ import errorReporter from './services/errorReporter';
 import i18nLoader from './services/i18nLoader';
 import networkActivityTracker from './services/networkActivityTracker';
 import networkUtils from './services/networkUtils';
+import loggedOutSessions from './services/loggedOutSessions';
+import authenticationStore from './services/authenticationStore';
 import secureSessionStorage from './services/secureSessionStorage';
+import eoStore from './services/eoStore';
 import translateAttribute from './directives/translateAttribute';
 import lazyInject from './directives/lazyInject';
 import ptClipboard from './services/ptClipboard';
+import translator from './services/translator';
 
 export default angular
     .module('proton.commons', [])
+    .factory('translator', translator)
     .factory('ptClipboard', ptClipboard)
     .directive('appConfigBody', appConfigBody)
     .directive('appCopyright', appCopyright)
@@ -48,6 +54,7 @@ export default angular
     .factory('Label', label)
     .factory('Logs', logs)
     .factory('Payment', payment)
+    .factory('Feature', feature)
     .factory('PaymentCache', paymentCache)
     .factory('Reset', reset)
     .factory('User', user)
@@ -58,7 +65,10 @@ export default angular
     .factory('i18nLoader', i18nLoader)
     .factory('networkActivityTracker', networkActivityTracker)
     .factory('networkUtils', networkUtils)
+    .factory('loggedOutSessions', loggedOutSessions)
     .factory('secureSessionStorage', secureSessionStorage)
+    .factory('authenticationStore', authenticationStore)
+    .factory('eoStore', eoStore)
     .directive('placeholderTranslate', translateAttribute.placeholder)
     .directive('titleTranslate', translateAttribute.title)
     .directive('lazyInject', lazyInject)

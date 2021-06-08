@@ -13,17 +13,19 @@ import { PACKAGE_TYPE, RECIPIENT_TYPE, MIME_TYPES, KEY_FLAGS, CONTACT_SETTINGS_D
 
 const ALLOWED_MIMETYPES = [CONTACT_SETTINGS_DEFAULT, MIME_TYPES.PLAINTEXT];
 const { SEND_PGP_INLINE } = PACKAGE_TYPE;
-const { TYPE_INTERNAL } = RECIPIENT_TYPE;
+const { TYPE_INTERNAL, TYPE_EXTERNAL } = RECIPIENT_TYPE;
 const { ENABLE_ENCRYPTION } = KEY_FLAGS;
 
 /* @ngInject */
 function contactPgpModel(dispatchers, mailSettingsModel) {
-    const CACHE = {};
-    const { dispatcher, on, unsubscribe } = dispatchers(['advancedSetting']);
+    let CACHE = {};
+    const { dispatcher, on } = dispatchers(['advancedSetting']);
     const set = (key, value) => (CACHE.model[key] = value);
     const get = (key) => CACHE.model[key];
     const dispatch = () => dispatcher.advancedSetting('update', CACHE);
     const isInternalUser = () => CACHE.internalKeys.RecipientType === TYPE_INTERNAL;
+    const isExternalUser = () => CACHE.internalKeys.RecipientType === TYPE_EXTERNAL;
+    const hasKeys = () => CACHE.internalKeys.Keys.length > 0;
     const getDefaultScheme = () => (mailSettingsModel.get('PGPScheme') === SEND_PGP_INLINE ? 'pgp-inline' : 'pgp-mime');
     const isDisabledUser = () =>
         isInternalUser() && CACHE.internalKeys.Keys.every(({ Flags }) => !(Flags & ENABLE_ENCRYPTION));
@@ -172,12 +174,14 @@ function contactPgpModel(dispatchers, mailSettingsModel) {
     });
 
     on('logout', () => {
-        unsubscribe();
+        CACHE = {};
     });
 
     return {
         init,
         isInternalUser,
+        isExternalUser,
+        hasKeys,
         isDisabledUser,
         isPGPInline,
         isPGPMime,

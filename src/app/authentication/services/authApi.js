@@ -1,44 +1,66 @@
+import { getRandomString } from '../../../helpers/string';
+
+export const getAuthHeaders = ({ UID, AccessToken }) => {
+    return {
+        headers: {
+            'x-pm-uid': UID,
+            Authorization: `Bearer ${AccessToken}`
+        }
+    };
+};
+
 /* @ngInject */
-function authApi($http, url) {
+function authApi($http, compatApi, url) {
     const requestURL = url.build('auth');
+    const unload = ({ data }) => data;
     return {
         /**
-         * Authenticate
-         * @param {Object} params
-         * @return {Promise}
-         */
-        authenticate(params = {}) {
-            return $http.post(requestURL(), params);
-        },
-        /**
          * Refresh an expired token
-         * @param {Object} params
          * @param {Object} config
          * @return {Promise}
          */
-        refresh(params = {}, config = {}) {
-            return $http.post(requestURL('refresh'), params, config);
+        refresh(config = {}) {
+            return $http.post(requestURL('refresh'), undefined, config);
         },
         /**
          * Set secure cookies, web app only
-         * @param {Object} params
+         * @param {Object} config
          * @return {Promise}
          */
-        cookies(params = {}) {
-            return $http.post(requestURL('cookies'), params);
+        cookies({ UID, AccessToken, RefreshToken }, config) {
+            return $http.post(
+                requestURL('cookies'),
+                {
+                    UID,
+                    RefreshToken,
+                    AccessToken,
+                    ResponseType: 'token',
+                    GrantType: 'refresh_token',
+                    RedirectURI: 'https://protonmail.com',
+                    State: getRandomString(24)
+                },
+                config
+            );
         },
         /**
          * Set up SRP authentication request
+         * @param {String} Username
          * @return {Promise}
          */
-        info(params = {}) {
-            return $http.post(requestURL('info'), params);
+        info(Username) {
+            return $http.post(requestURL('info'), { Username }).then(unload);
+        },
+        /**
+         * @return {Promise}
+         */
+        auth2fa(data, config) {
+            return $http.post(requestURL('2fa'), data, config).then(unload);
         },
         /**
          * @return {Promise}
          */
         modulus() {
-            return $http.get(requestURL('modulus'));
+            return $http.get(requestURL('modulus')).then(unload);
         },
         /**
          * Revoke a token

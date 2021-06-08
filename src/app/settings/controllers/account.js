@@ -1,56 +1,33 @@
 import _ from 'lodash';
 import { PAID_MEMBER_ROLE, REMOTE, EMBEDDED } from '../../constants';
+import CONFIG from '../../config';
 
 /* @ngInject */
 function AccountController(
     $scope,
-    $state,
     $timeout,
     authentication,
     changePasswordModal,
-    confirmModal,
     deleteAccountModal,
     desktopNotifications,
     dispatchers,
-    eventManager,
     gettextCatalog,
     hotkeyModal,
     hotkeys,
-    Key,
     loginPasswordModal,
     mailSettingsModel,
     networkActivityTracker,
     notification,
-    organizationModel,
-    passwords,
     settingsApi,
     settingsMailApi,
-    tools,
     User,
     userSettingsModel
 ) {
     let promisePasswordModal;
     const { on, unsubscribe } = dispatchers();
     $scope.emailing = { announcements: false, features: false, newsletter: false, beta: false };
-    $scope.locales = [
-        { label: 'Čeština', key: 'cs_CZ' },
-        { label: 'Deutsch', key: 'de_DE' },
-        { label: 'English', key: 'en_US' },
-        { label: 'Español', key: 'es_ES' },
-        { label: 'Français', key: 'fr_FR' },
-        // { label: 'Bahasa Indonesia', key: 'id_ID' },
-        { label: 'Italiano', key: 'it_IT' },
-        { label: '日本語', key: 'ja_JP' },
-        { label: 'Nederlands', key: 'nl_NL' },
-        { label: 'Polski', key: 'pl_PL' },
-        { label: 'Português, brasileiro', key: 'pt_BR' },
-        { label: 'Pусский', key: 'ru_RU' },
-        { label: 'Română', key: 'ro_RO' },
-        { label: 'Türkçe', key: 'tr_TR' },
-        { label: 'Українська', key: 'uk_UA' },
-        { label: '简体中文', key: 'zh_CN' },
-        { label: '繁體中文', key: 'zh_TW' }
-    ];
+    $scope.locales = Object.entries(CONFIG.locales).map(([key, label]) => ({ key, label }));
+
     $scope.locale = _.find($scope.locales, { key: gettextCatalog.getCurrentLanguage() }) || $scope.locales[0];
     const EMAILING_KEYS = Object.keys($scope.emailing);
 
@@ -123,7 +100,7 @@ function AccountController(
         function submit(currentPassword, twoFactorCode) {
             loginPasswordModal.deactivate();
             const credentials = { Password: currentPassword, TwoFactorCode: twoFactorCode };
-            const promise = settingsApi.updateEmail({ Email: $scope.notificationEmail }, credentials).then(() => {
+            const promise = settingsApi.updateEmail(credentials, { Email: $scope.notificationEmail }).then(() => {
                 userSettingsModel.set('NotificationEmail', $scope.notificationEmail);
                 form.$setUntouched();
                 form.$setPristine();
@@ -140,7 +117,7 @@ function AccountController(
             loginPasswordModal.deactivate();
             const credentials = { Password, TwoFactorCode };
             const promise = settingsApi
-                .passwordReset({ PasswordReset: $scope.passwordReset }, credentials)
+                .passwordReset(credentials, { PasswordReset: $scope.passwordReset })
                 .then(() => {
                     notification.success(gettextCatalog.getString('Preference saved', null, 'Success'));
                 })
@@ -241,8 +218,9 @@ function AccountController(
     }
 
     function updateMailSettings() {
-        const { Hotkeys, ShowImages, AutoSaveContacts } = mailSettingsModel.get();
+        const { Hotkeys, ShowImages, AutoSaveContacts, ConfirmLink } = mailSettingsModel.get();
 
+        $scope.requestLink = ConfirmLink;
         $scope.autosaveContacts = AutoSaveContacts;
         $scope.images = ShowImages & REMOTE ? 1 : 0;
         $scope.embedded = ShowImages & EMBEDDED ? 2 : 0;
@@ -277,6 +255,14 @@ function AccountController(
         networkActivityTracker.track(promise);
     };
 
+    $scope.saveRequestLink = () => {
+        const promise = settingsMailApi.updateConfirmLink({ ConfirmLink: $scope.requestLink }).then(() => {
+            notification.success(gettextCatalog.getString('Preference saved', null, 'Success'));
+        });
+
+        networkActivityTracker.track(promise);
+    };
+
     $scope.openHotkeyModal = () => {
         hotkeyModal.activate({
             params: {
@@ -288,15 +274,12 @@ function AccountController(
     };
 
     $scope.saveHotkeys = () => {
-        const promise = settingsMailApi.updateHotkeys({ Hotkeys: $scope.hotkeys }).then(() => {
-            if ($scope.hotkeys === 1) {
-                hotkeys.bind();
-            } else {
-                hotkeys.unbind();
-            }
-
-            notification.success(gettextCatalog.getString('Hotkeys preferences updated', null, 'Success'));
-        });
+        const promise = settingsMailApi
+            .updateHotkeys({ Hotkeys: $scope.hotkeys })
+            .then(({ MailSettings = {} } = {}) => {
+                hotkeys[MailSettings.Hotkeys === 1 ? 'bind' : 'unbind']();
+                notification.success(gettextCatalog.getString('Hotkeys preferences updated', null, 'Success'));
+            });
 
         networkActivityTracker.track(promise);
     };

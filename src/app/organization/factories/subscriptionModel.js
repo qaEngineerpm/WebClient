@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { DEFAULT_CURRENCY, DEFAULT_CYCLE } from '../../constants';
+import { DEFAULT_CURRENCY, DEFAULT_CYCLE, PLANS_TYPE, BLACK_FRIDAY } from '../../constants';
 
 const PAID_TYPES = {
     plus: ['plus'],
@@ -122,12 +122,47 @@ function subscriptionModel(dispatchers, Payment) {
         return 'free';
     }
 
+    const withCoupon = (coupon) => {
+        const { CouponCode = '' } = CACHE.subscription || {};
+        return CouponCode === coupon;
+    };
+
+    const isProductPayer = () => {
+        const { CouponCode = '', Plans = [] } = CACHE.subscription || {};
+        const noPro = !hasPaid('professional');
+        const isPaying = hasPaid('plus') || hasPaid('vpnplus') || hasPaid('vpnbasic');
+        const noBundle = !(hasPaid('plus') && hasPaid('vpnplus'));
+        const noBFCoupon = ![BLACK_FRIDAY.COUPON_CODE].includes(CouponCode);
+        const noAddons = !Plans.some(({ Type }) => Type === PLANS_TYPE.ADDON);
+
+        return isPaying && noPro && noBundle && noBFCoupon && noAddons;
+    };
+
+    const getAddons = () => {
+        const { Plans = [] } = CACHE.subscription || {};
+        return Plans.filter(({ Type }) => Type === PLANS_TYPE.ADDON);
+    };
+
     on('app.event', (event, { type, data }) => {
         if (type === 'subscription.event') {
             set(data.subscription);
         }
     });
 
-    return { set, get, name, fetch, hasPaid, coupon, count, cycle, currency, isMoz };
+    return {
+        isProductPayer,
+        getAddons,
+        withCoupon,
+        set,
+        get,
+        name,
+        fetch,
+        hasPaid,
+        coupon,
+        count,
+        cycle,
+        currency,
+        isMoz
+    };
 }
 export default subscriptionModel;

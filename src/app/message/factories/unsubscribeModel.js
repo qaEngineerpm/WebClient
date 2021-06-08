@@ -1,4 +1,5 @@
 import _ from 'lodash';
+
 import { openWindow, parseURL } from '../../../helpers/browser';
 
 /* @ngInject */
@@ -9,7 +10,8 @@ function unsubscribeModel(
     messageModel,
     notification,
     requestFormData,
-    simpleSend
+    simpleSend,
+    translator
 ) {
     const LIST = [];
     const UNSUBSCRIBE_REGEX = /<(.*?)>/g;
@@ -17,7 +19,9 @@ function unsubscribeModel(
 
     const { dispatcher, on } = dispatchers(['message']);
 
-    const successMessage = gettextCatalog.getString('Unsubscribed', null, 'Success notification');
+    const I18N = translator(() => ({
+        SUCCESS: gettextCatalog.getString('Unsubscribed', null, 'Success notification')
+    }));
 
     function already(list = '') {
         if (list.length) {
@@ -41,7 +45,7 @@ function unsubscribeModel(
         }
 
         const to = mailto.substring(0, j);
-        const { searchObject = {} } = parseURL(mailto.substring(j + 1));
+        const { searchObject = {} } = parseURL(mailto);
 
         message.AddressID = address.ID;
         message.From = address;
@@ -55,7 +59,7 @@ function unsubscribeModel(
         message.Subject = searchObject.subject || 'Unsubscribe me';
         message.setDecryptedBody(searchObject.body || 'Unsubscribe me please');
 
-        return simpleSend(message).then(() => notification.success(successMessage));
+        return simpleSend(message).then(() => notification.success(I18N.SUCCESS));
     }
 
     /**
@@ -67,7 +71,7 @@ function unsubscribeModel(
     const postRequest = (url = '') => {
         const data = new FormData();
         data.append('List-Unsubscribe', 'One-Click');
-        return requestFormData('POST', url, data);
+        return requestFormData({ method: 'POST', url, data, noOfflineNotify: true });
     };
 
     function unsubscribe(message = {}) {

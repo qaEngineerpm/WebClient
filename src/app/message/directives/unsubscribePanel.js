@@ -1,6 +1,15 @@
 /* @ngInject */
-function unsubscribePanel(addressesModel, confirmModal, dispatchers, gettextCatalog, notification, unsubscribeModel) {
-    const I18N = {
+function unsubscribePanel(
+    addressesModel,
+    confirmModal,
+    dispatchers,
+    gettextCatalog,
+    notification,
+    unsubscribeModel,
+    translator
+) {
+    const I18N = translator(() => ({
+        forwardedMessage: gettextCatalog.getString('Cannot unsubscribe from forwarded message. Please contact the list owner to remove your subscription', null, 'Error'),
         cannotSend(email) {
             return gettextCatalog.getString(
                 'Cannot unsubscribe with {{email}}, please upgrade to a paid plan or enable the address',
@@ -8,7 +17,7 @@ function unsubscribePanel(addressesModel, confirmModal, dispatchers, gettextCata
                 'Error message when unsubscribing to mail list'
             );
         },
-        notice: gettextCatalog.getString('This message is from a mailing list.', null, 'Info'),
+        notice: gettextCatalog.getString('This message is from a mailing list', null, 'Info'),
         kb: gettextCatalog.getString('Learn more', null, 'Info'),
         button: gettextCatalog.getString('Unsubscribe', null, 'Action'),
         title: gettextCatalog.getString('Unsubscribe from mailing list?', null, 'Title'),
@@ -19,11 +28,16 @@ function unsubscribePanel(addressesModel, confirmModal, dispatchers, gettextCata
                 'Info'
             );
         }
-    };
+    }));
+
     const { dispatcher } = dispatchers(['message']);
 
     const confirmFirst = (message) => {
         const address = addressesModel.getByEmail(message.xOriginalTo);
+
+        if (!address) {
+            return notification.error(I18N.forwardedMessage);
+        }
 
         if (!address.Send) {
             return notification.error(I18N.cannotSend(message.xOriginalTo));

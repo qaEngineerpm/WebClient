@@ -38,7 +38,10 @@
 }
 
 .addressKeysView-toggle { width: 30px }
-.addressKeysView-email { width: calc(100% - 30px) }
+.addressKeysView-email {
+    width: calc(100% - 30px);
+    padding-left: .5em;
+}
 
 
 .addressKeysView-container.user [data-display-mode="address"],

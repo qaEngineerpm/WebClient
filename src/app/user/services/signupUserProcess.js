@@ -12,19 +12,15 @@ function signupUserProcess(
     authentication,
     attachSignupSubscription,
     lazyLoader,
+    notification,
     Address,
+    authApi,
     $state,
-    setupKeys,
-    notification
+    setupKeys
 ) {
     const CACHE = {};
     const { dispatcher } = dispatchers(['signup']);
     const dispatch = (type, data = {}) => dispatcher.signup(type, data);
-
-    const I18N = {
-        ERROR_ADDRESS_CREATION: gettextCatalog.getString('Something went wrong during address creation', null, 'Error'),
-        ERROR_PROCESS: gettextCatalog.getString('Something went wrong', null, 'Error')
-    };
 
     async function doCreateUser(model) {
         dispatch('create.user', { value: true });
@@ -35,20 +31,20 @@ function signupUserProcess(
             const { data = {} } = e;
 
             // Failed Human verification
-            if (data.Code === API_CUSTOM_ERROR_CODES.USER_CREATE_TOKEN_INVALID) {
+            if (
+                [API_CUSTOM_ERROR_CODES.USER_CREATE_TOKEN_INVALID, API_CUSTOM_ERROR_CODES.ALREADY_EXISTS].includes(
+                    data.Code
+                )
+            ) {
                 dispatch('creating', { value: false });
                 dispatch('chech.humanity', { value: true });
 
-                return Promise.reject({
-                    error: new Error(data.Error),
-                    verbose: false
-                });
+                if (data.Code === API_CUSTOM_ERROR_CODES.ALREADY_EXISTS) {
+                    notification.error(data.Error);
+                }
             }
 
-            return Promise.reject({
-                error: new Error(data.Error),
-                verbose: true
-            });
+            throw e;
         }
     }
 
@@ -58,48 +54,25 @@ function signupUserProcess(
         }
     }
 
-    function doLogUserIn() {
+    async function doLogUserIn() {
         dispatch('loguserin', { value: true });
-
-        return authentication
-            .loginWithCredentials({
-                Username: signupModel.get('username'),
-                Password: signupModel.getPassword()
-            })
-            .then(({ data }) => {
-                authentication.receivedCredentials(data);
-                return authentication.setAuthCookie(data);
-            })
-            .then(() => {
-                AppModel.set('isLoggedIn', authentication.isLoggedIn());
-                AppModel.set('isLocked', authentication.isLocked());
-                AppModel.set('isSecure', authentication.isSecured());
-            });
+        const credentials = {
+            username: signupModel.get('username'),
+            password: signupModel.getPassword()
+        };
+        await authentication.loginWithCookies(credentials);
     }
 
     async function doAccountSetup() {
         dispatch('setup.account', { value: true });
 
-        try {
-            const { data } = await Address.setup({ Domain: signupModel.getDomain() });
+        const { data } = await Address.setup({ Domain: signupModel.getDomain() });
 
-            CACHE.setupPayload.keys[0].AddressID = data.Address.ID;
+        CACHE.setupPayload.keys[0].AddressID = data.Address.ID;
 
-            return setupKeys.setup(CACHE.setupPayload, signupModel.getPassword()).then(() => {
-                authentication.savePassword(CACHE.setupPayload.mailboxPassword);
+        await setupKeys.setup(CACHE.setupPayload, signupModel.getPassword());
 
-                AppModel.set('isLoggedIn', authentication.isLoggedIn());
-                AppModel.set('isLocked', authentication.isLocked());
-                AppModel.set('isSecure', authentication.isSecured());
-                return data;
-            });
-        } catch (err) {
-            const { data = {} } = err;
-            if (data.Error) {
-                throw new Error(data.Error);
-            }
-            throw err;
-        }
+        authentication.setPassword(CACHE.setupPayload.mailboxPassword);
     }
 
     async function doGetUserInfo() {
@@ -119,23 +92,6 @@ function signupUserProcess(
         return $state.go('secured.dashboard');
     }
 
-    const createAddress = async () => {
-        try {
-            return await doLogUserIn().then(doAccountSetup);
-        } catch (e) {
-            const { data = {} } = e;
-            if (data.Error) {
-                return Promise.reject({
-                    error: new Error(data.Error || I18N.ERROR_ADDRESS_CREATION),
-                    verbose: true,
-                    redirect: 'login'
-                });
-            }
-
-            throw e;
-        }
-    };
-
     const doSubscription = async () => {
         // Attach subscription and catch any error to keep the same behavior as before (to redirect to the inbox).
         await attachSignupSubscription({
@@ -147,7 +103,8 @@ function signupUserProcess(
 
     const create = async (model) => {
         await doCreateUser(model);
-        await createAddress();
+        await doLogUserIn();
+        await doAccountSetup();
         await doSubscription();
         await setUserLanguage();
         await doGetUserInfo();
@@ -166,11 +123,8 @@ function signupUserProcess(
 
     const createAccount = (model) => {
         dispatch('signup.error', { value: false });
-        create(model).catch((e) => {
-            notification.error(e.error ? e.error.message : I18N.ERROR_PROCESS);
+        create(model).catch(() => {
             dispatch('signup.error', { value: true });
-            console.error(e);
-            e.redirect && $state.go(e.redirect);
         });
     };
 

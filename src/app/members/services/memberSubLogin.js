@@ -9,15 +9,16 @@ function memberSubLogin(
     memberModel,
     authentication,
     networkActivityTracker,
+    translator,
     gettextCatalog
 ) {
-    const I18N = {
+    const I18N = translator(() => ({
         ERROR: gettextCatalog.getString(
             'Permission denied, administrator privileges have been restricted.',
             null,
             'Error'
         )
-    };
+    }));
 
     const SUBLOGIN_URL = $state.href('login.sub', { sub: true }, { absolute: true });
 
@@ -58,11 +59,11 @@ function memberSubLogin(
         const promise = memberModel
             .login(member, { Password, TwoFactorCode })
             .then((UID) => {
-                const MailboxPassword = authentication.getPassword();
+                const mailboxPassword = authentication.getPassword();
                 const cb = () => {
                     if (config.isReady) {
                         // Send the session token and the organization owner’s  mailbox password to the target URI
-                        child.postMessage({ UID, MailboxPassword }, config.domain);
+                        child.postMessage({ UID, mailboxPassword }, config.domain);
                     } else {
                         _.delay(cb, 500);
                     }

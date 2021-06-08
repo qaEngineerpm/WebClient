@@ -91,7 +91,6 @@
         border: 1px solid $border;
         border-radius: 2px;
         margin: 10px;
-        box-sizing: border-box;
         clear: both;
 
         .recipients-details .messageContacts-email { margin-left: .5em; }
@@ -126,7 +125,6 @@
             float: left;
             width: 100%;
             clear: both;
-            box-sizing: border-box;
         }
         .message-contact-sender { color: $primary }
         &.marked {
@@ -445,6 +443,7 @@
             zoom: 1;
             clear: left;
             overflow-x: auto;
+            box-sizing: content-box; // to avoid problems in some emails
 
             .bodyDecrypted { word-wrap: break-word; }
 
@@ -490,8 +489,14 @@
     background-color: transparent;
 }
 
-#conversation-view:empty { display: none }
+.message:not(.message-is-replied):not(.message-is-repliedall):not(.message-is-forwarded) [data-if-is],
+.message.message-is-replied [data-if-is]:not([data-if-is="replied"]),
+.message.message-is-repliedall [data-if-is]:not([data-if-is="repliedall"]),
+.message.message-is-forwarded [data-if-is]:not([data-if-is="forwarded"]) {
+    display: none !important;
+}
 
+#conversation-view:empty,
 .message.message-mode-plain .displayContentBtn-container { display: none }
 
 .protonmail_signature_block-empty { /* https://github.com/ProtonMail/Angular/issues/4813 */
@@ -635,7 +640,6 @@ body.appConfigBody-is-mobile {
                 .details {
                     .recipients-summary {
                         padding-left: 12px;
-                        box-sizing: border-box;
                     }
                 }
             }
@@ -669,6 +673,18 @@ body.appConfigBody-is-mobile {
       line-height: 14px;
       padding: 0 .4rem;
     }
+}
+
+.ua-safari .message-body-container a {
+    margin-left: 1px
+}
+
+/*
+    If the link is around an image by default its height = font-size + line-heigt ratio. Often < img height.
+    If pointer-events: none; on the image the link won't be extended by the browser to be around the whole image when we click.
+ */
+.message-body-container a *:not(img) {
+    pointer-events: none;
 }
 
 .proton-message-blockquote-toggle ~ * {display: none !important}

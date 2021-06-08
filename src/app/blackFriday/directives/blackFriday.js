@@ -1,6 +1,5 @@
-import { BLACK_FRIDAY, CYBER_MONDAY, PLANS_TYPE } from '../../constants';
-import { getEventName, isBlackFriday } from '../helpers/blackFridayHelper';
-import { getAfterCouponDiscount, hasBlackFridayCoupon, normalizePrice } from '../../../helpers/paymentHelper';
+import { PLANS_TYPE } from '../../constants';
+import { isCyberMonday } from '../helpers/blackFridayHelper';
 
 /* @ngInject */
 function blackFriday(
@@ -10,97 +9,98 @@ function blackFriday(
     paymentModal,
     PaymentCache,
     networkActivityTracker,
-    $filter
+    $filter,
+    gettextCatalog
 ) {
     const TEXTS = {
-        241: 'Two-for-one deal',
-        2: 'Two-year deal',
-        price: (price) => `${price} for the first 2 years`,
-        regularPrice: (price) => `Regular monthly price ${price}`,
-        currentPrice: (price) => `Current price ${price}`,
-        currentSubscriptionPrice: (price, plans) => `You are currently charged ${price}/month for ${plans}`,
-        savings: (price) => `Save ${price} over two years`,
-        billing: (price) => `Billed as ${price} for two years`,
-        afterBilling: (price) =>
-            `Minus any prorated refund for remaining funds allocated to a current plan. After two years, your subscription automatically renews at the price of ${price} every two years.`,
-        header(total) {
-            const name = getEventName();
-            return total === 1 ? `${name} deal` : `${name} deals`;
+        billing(price, cycle) {
+            if (cycle === 12) {
+                return gettextCatalog.getString('Billed as {{price}} for 1 year', { price }, 'blackfriday Info');
+            }
+            return gettextCatalog.getString('Billed as {{price}} for 2 years', { price }, 'blackfriday Info');
         },
-        and: ' and ',
-        commit2: 'Save more with a two year plan!',
-        get2: 'Get two years for the price of one!',
-        perMonth: '/mo',
-        buy: 'Get the deal'
-    };
+        afterBilling(price, cycle, plans) {
+            if (cycle === 12 && plans.length === 1) {
+                return gettextCatalog.getString(
+                    'Renews after 1 year at a discounted annual price of {{price}} per year (20% discount).',
+                    { price },
+                    'blackfriday Info'
+                );
+            }
+            if (cycle === 24) {
+                return gettextCatalog.getString(
+                    'Renews after 2 years at a discounted 2-year and bundle price of {{price}} every 2 years (47% discount).',
+                    { price },
+                    'blackfriday Info'
+                );
+            }
+            return gettextCatalog.getString(
+                'Renews after 1 year at a discounted annual and bundle price of {{price}} every year (36% discount).',
+                { price },
+                'blackfriday Info'
+            );
+        },
+        perMonth: gettextCatalog.getString('per month', null, 'blackfriday price'),
+        buy: gettextCatalog.getString('Get limited-time deal', null, 'blackfriday Action'),
+        upgrade: gettextCatalog.getString('Upgrade', null, 'blackfriday Action'),
+        offer(plans, cycle) {
+            if (cycle === 12 && plans.length === 1) {
+                return {
+                    type: gettextCatalog.getString('for 1 year', null, 'blackfriday Info'),
+                    title: plans[0].Title
+                };
+            }
 
-    const currencyFilter = (amount, cycle, currency) => $filter('currency')(amount / 100 / cycle, currency);
+            if (cycle === 24) {
+                return {
+                    type: gettextCatalog.getString('for 2 years', null, 'blackfriday Info'),
+                    title: plans.map(({ Title }) => Title).join(' + ')
+                };
+            }
 
-    const percentageFilter = $filter('percentage');
-
-    /**
-     * Get the plan titles. Ignoring addons.
-     * @param {Array} Plans
-     * @returns {Array<String>}
-     */
-    const getPlanTitles = (Plans = []) =>
-        Plans.filter(({ Type }) => Type === PLANS_TYPE.PLAN).map(({ Title }) => Title);
-
-    /**
-     * Get the price data for an offer.
-     * @param {Object} discount
-     * @param {Object} regular
-     * @param {Object} after
-     * @param {Number} index
-     * @returns {Object}
-     */
-    const getPrice = ({ discount, regular, after, index }) => {
-        const stars = '*'.repeat(index + 1);
-        const { Cycle, Currency } = discount;
-
-        const isBlackFridayDeal = hasBlackFridayCoupon(discount);
-
-        const discountedAmount = getAfterCouponDiscount(discount);
-        const regularAmount = regular.Amount;
-        const regularNormalizedAmount = normalizePrice(regularAmount, regular.Cycle, Cycle);
-        const savingsAmount = regularNormalizedAmount - discountedAmount;
-        const afterAmount = getAfterCouponDiscount(after);
-
-        return {
-            header: TEXTS[isBlackFridayDeal ? 241 : 2],
-            percentage: percentageFilter((regularNormalizedAmount - discountedAmount) / regularNormalizedAmount),
-            discountedPrice: currencyFilter(discountedAmount, Cycle, Currency),
-            regularPrice: TEXTS.regularPrice(currencyFilter(regularAmount, regular.Cycle, Currency)),
-            savings: TEXTS.savings(currencyFilter(savingsAmount, 1, Currency)),
-            billing: TEXTS.billing(currencyFilter(discountedAmount, 1, Currency)) + stars,
-            afterBilling: stars + TEXTS.afterBilling(currencyFilter(afterAmount, 1, Currency))
-        };
-    };
-
-    const getClickData = (PlanIDs, valid) => {
-        return {
-            payment: valid,
-            PlanIDs
-        };
-    };
-
-    const getOffer = ({ PlanIDs, plans = [], payments: [discount, regular, after] }, index) => ({
-        ...getPrice({
-            discount,
-            regular,
-            after,
-            index
-        }),
-        plans: getPlanTitles(plans),
-        clickData: getClickData(PlanIDs, discount)
-    });
-
-    const getCurrentPrice = ({ Amount, Cycle, Currency, Plans = [] }) => {
-        if (!Amount) {
-            return;
+            return {
+                type: gettextCatalog.getString('for 1 year', null, 'blackfriday Info'),
+                title: plans.map(({ Title }) => Title).join(' + ')
+            };
         }
-        const planNames = getPlanTitles(Plans).join(TEXTS.and);
-        return TEXTS.currentSubscriptionPrice(currencyFilter(Amount, Cycle, Currency), planNames);
+    };
+
+    const currencyFilter = (amount, cycle, currency) => $filter('currency')(amount / 100 / cycle, currency, true);
+
+    const getClickData = (plans, payment) => {
+        if (subscriptionModel.isProductPayer()) {
+            return { payment, plans: plans.concat(subscriptionModel.getAddons()) };
+        }
+
+        return { payment, plans };
+    };
+
+    const getOffer = ({
+        offer,
+        withCoupon,
+        withoutCoupon,
+        withoutCouponMonthly,
+        mostPopular,
+        planList,
+        Cycle,
+        Currency
+    }) => {
+        const withCouponMonthly = withCoupon / Cycle;
+        return {
+            mostPopular,
+            price: {
+                monthly: currencyFilter(withCoupon, Cycle, Currency),
+                monthlyRegular: currencyFilter(withoutCouponMonthly, 1, Currency),
+                total: currencyFilter(withCoupon, 1, Currency),
+                totalRegular: currencyFilter(withoutCouponMonthly * Cycle, 1, Currency)
+            },
+            percentage: 100 - Math.round((withCouponMonthly * 100) / withoutCouponMonthly),
+            driveIncluded: planList.length === 2,
+            afterBilling: TEXTS.afterBilling(currencyFilter(withoutCoupon, 1, Currency), Cycle, planList),
+            clickData: getClickData(planList, offer),
+            header: TEXTS.offer(planList, Cycle),
+            billingTxt: TEXTS.billing(currencyFilter(withCoupon, 1, Currency), Cycle)
+        };
     };
 
     return {
@@ -130,24 +130,50 @@ function blackFriday(
              * Opens up the payment to buy an offer.
              * @returns {Promise}
              */
-            const openPayment = async ({ payment, PlanIDs }) => {
+            const openPayment = async ({ payment, plans: planList }) => {
                 if (scope.state.loading) {
                     return;
                 }
+
+                const planIDs = planList.reduce((acc, { ID, Type }) => {
+                    if (Type === PLANS_TYPE.PLAN) {
+                        acc[ID] = 1;
+                    }
+
+                    if (Type === PLANS_TYPE.ADDON) {
+                        acc[ID] = (acc[ID] || 0) + 1;
+                    }
+                    return acc;
+                }, {});
 
                 // Get with monthly cycle to ensure caching for paymentPlanOverview. Only needed for IDs.
                 const promise = wrapLoading(PaymentCache.plans());
                 const plans = await networkActivityTracker.track(promise);
 
+                // we re-check again for plus as you might have addons
+                if (subscriptionModel.isProductPayer()) {
+                    const { Currency, Cycle } = payment;
+                    const valid = await PaymentCache.valid({
+                        Currency,
+                        Cycle,
+                        PlanIDs: planIDs
+                    });
+                    return paymentModal.activate({
+                        params: {
+                            isBlackFriday: true,
+                            valid,
+                            planIDs,
+                            plans
+                        }
+                    });
+                }
+
                 paymentModal.activate({
                     params: {
                         isBlackFriday: true,
-                        planIDs: PlanIDs,
                         valid: payment,
-                        plans,
-                        cancel() {
-                            paymentModal.deactivate();
-                        }
+                        planIDs,
+                        plans
                     }
                 });
             };
@@ -161,34 +187,48 @@ function blackFriday(
                 if (!offer) {
                     return;
                 }
+
                 openPayment(offer.clickData);
                 dispatcher.blackFriday('closeModal');
             };
 
-            const refresh = (currency) =>
-                wrapLoading(blackFridayModel.getOffers(currency)).then((offers = []) => {
-                    scope.$applyAsync(() => {
-                        scope.state.header = TEXTS.header(offers.length);
-                        scope.state.intro =
-                            TEXTS[
-                                offers.some(({ payments: [discount] }) => !hasBlackFridayCoupon(discount))
-                                    ? 'commit2'
-                                    : 'get2'
-                            ];
-
-                        scope.offers = offers.map(getOffer);
-                    });
+            const refresh = async (currency) => {
+                const offers = await wrapLoading(blackFridayModel.getOffers(currency));
+                scope.$applyAsync(() => {
+                    scope.offers = offers.map(getOffer);
                 });
+            };
 
             scope.state = {
                 loading: true,
                 currency: subscriptionModel.currency(),
                 perMonth: TEXTS.perMonth,
-                buy: TEXTS.buy,
-                end: isBlackFriday() ? BLACK_FRIDAY.BETWEEN.END : CYBER_MONDAY.BETWEEN.END
+                buy: subscriptionModel.isProductPayer() ? TEXTS.upgrade : TEXTS.buy,
+                isCyberMonday: isCyberMonday(),
+                isProductPayer: subscriptionModel.isProductPayer()
             };
 
-            scope.currentPrice = getCurrentPrice(subscriptionModel.get());
+            scope.getPrice = ({ price: { monthly: priceMonthly = '' } = {} } = {}) => {
+                // USD
+                if (priceMonthly.startsWith('$')) {
+                    const [main, ...rest] = priceMonthly.substring(1).split('.');
+                    return `$ <span class="bf-main-price">${main}</span>${rest.length ? '.' : ''}${rest.join(
+                        ''
+                    )}<span class="blackFridayOffer-price-billing-period">${TEXTS.perMonth}</span>`;
+                }
+                const [main, ...rest] = priceMonthly.split('.');
+                // 12.33 CHF
+                if (rest.length) {
+                    return `<span class="bf-main-price">${main}</span>.${rest.join(
+                        ''
+                    )}<span class="blackFridayOffer-price-billing-period">${TEXTS.perMonth}</span>`;
+                }
+                // 12 CHF
+                const [price, ...currency] = main.split(' ');
+                return `<span class="bf-main-price">${price}</span> ${currency.join(
+                    ''
+                )}<span class="blackFridayOffer-price-billing-period">${TEXTS.perMonth}</span>`;
+            };
 
             networkActivityTracker.track(
                 blackFridayModel.loadPayments().then(() => {
@@ -205,9 +245,16 @@ function blackFriday(
                 }
             });
 
+            const intervalID = setInterval(() => {
+                scope.$applyAsync(() => {
+                    scope.state.isCyberMonday = isCyberMonday();
+                });
+            }, 1000);
+
             scope.$on('destroy', () => {
                 element.off('click', onClick);
                 unsubscribe();
+                clearInterval(intervalID);
             });
         }
     };

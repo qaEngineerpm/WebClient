@@ -4,17 +4,18 @@ import updateCollection from '../../utils/helpers/updateCollection';
 import { formatKeys } from '../../../helpers/key';
 
 import { FREE_USER_ROLE, PAID_ADMIN_ROLE, PAID_MEMBER_ROLE } from '../../constants';
+import { markDefault } from '../../../helpers/addresses';
 
 /* @ngInject */
-function memberModel(dispatchers, addressesModel, memberApi, gettextCatalog, authentication) {
+function memberModel(dispatchers, addressesModel, memberApi, gettextCatalog, authentication, translator) {
     let CACHE = [];
     const { dispatcher, on } = dispatchers(['members']);
-    const I18N = {
+    const I18N = translator(() => ({
         ROLES: {
             [PAID_ADMIN_ROLE]: gettextCatalog.getString('Admin', null, 'User role'),
             [PAID_MEMBER_ROLE]: gettextCatalog.getString('Member', null, 'User role')
         }
-    };
+    }));
 
     const USER_MEMBER = { Self: 1 };
 
@@ -25,7 +26,8 @@ function memberModel(dispatchers, addressesModel, memberApi, gettextCatalog, aut
     const remove = ({ ID }) => memberApi.remove(ID);
     const changeRole = ({ ID }, payload) => memberApi.role(ID, payload);
     const makePrivate = ({ ID }) => memberApi.privatize(ID);
-    const login = ({ ID }, params) => memberApi.authenticate(ID, params);
+    const revokeSessions = ({ ID }) => memberApi.revokeSessions(ID);
+    const login = ({ ID }, credentials) => memberApi.authenticate(ID, credentials);
     const formatUserMember = () => {
         _.extend(USER_MEMBER, {
             Name: authentication.user.Name,
@@ -39,7 +41,7 @@ function memberModel(dispatchers, addressesModel, memberApi, gettextCatalog, aut
         const { data = {} } = await memberApi.addresses(member.ID);
         const { Addresses = [] } = data;
 
-        member.Addresses = await formatKeys(Addresses);
+        member.Addresses = await formatKeys(markDefault(Addresses));
 
         return member;
     };
@@ -118,6 +120,7 @@ function memberModel(dispatchers, addressesModel, memberApi, gettextCatalog, aut
         clear,
         remove,
         changeRole,
+        revokeSessions,
         makePrivate,
         login,
         getAll,

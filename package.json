@@ -15,7 +15,6 @@
     "@babel/plugin-transform-runtime": "^7.2.0",
     "@babel/preset-env": "^7.2.3",
     "@babel/runtime": "^7.2.0",
-    "angular-gettext-cli": "github:huston007/angular-gettext-cli#a59bc3e142a5bee1b21d1876d1bb88008bd115b7",
     "angular-mocks": "^1.7.5",
     "autodll-webpack-plugin": "^0.4.2",
     "autoprefixer": "^9.4.4",
@@ -26,7 +25,7 @@
     "babel-plugin-lodash": "^3.3.4",
     "cache-loader": "^2.0.1",
     "chalk": "^2.4.2",
-    "component-generator": "github:ProtonMail/componentGenerator#c8b256c5e1d45bddedb36a6efa3c00238e535a1a",
+    "component-generator": "github:ProtonMail/componentGenerator#semver:~v1.6.0",
     "copy-webpack-plugin": "^4.6.0",
     "cqc": "^0.6.0",
     "cross-env": "^5.2.0",
@@ -34,6 +33,7 @@
     "css-loader": "^2.1.0",
     "dedent": "^0.7.0",
     "del-cli": "^1.1.0",
+    "dotenv": "^6.2.0",
     "ejs-webpack-loader": "^2.2.2",
     "eslint": "^5.12.0",
     "eslint-config-airbnb-base": "^13.1.0",
@@ -58,6 +58,8 @@
     "node-sass": "^4.11.0",
     "optimize-css-assets-webpack-plugin": "^5.0.1",
     "postcss-loader": "^3.0.0",
+    "proton-bundler": "github:ProtonMail/proton-bundler#semver:^2.1.0",
+    "proton-version": "github:ProtonMail/proton-version#semver:^1.0.0",
     "releaser": "github:ProtonMail/releaser.git",
     "sass-loader": "^7.1.0",
     "script-ext-html-webpack-plugin": "^2.1.3",
@@ -69,11 +71,11 @@
     "style-loader": "^0.23.1",
     "terser-webpack-plugin": "^1.2.1",
     "url-loader": "^1.1.2",
-    "webpack": "^4.28.1",
+    "webpack": "~4.28.1",
     "webpack-cli": "^3.2.1",
     "webpack-dev-server": "^3.1.14",
     "webpack-notifier": "^1.7.0",
-    "webpack-subresource-integrity": "^1.3.1",
+    "webpack-subresource-integrity": "github:dhoko/webpack-subresource-integrity.git#b077a0037485ec74203f30746dc4d448eb8eac1d",
     "write-webpack-plugin": "^1.1.0"
   },
   "dependencies": {
@@ -100,16 +102,19 @@
     "clipboard": "^2.0.1",
     "codemirror": "^5.35.0",
     "components-font-awesome": "^4.7.0",
+    "core-js": "^3.13.0",
+    "credit-card-type": "^8.3.0",
     "cssuseragent": "^2.1.31",
     "declassify": "^2.1.0",
     "dompurify": "^1.0.8",
     "dropzone": "^5.5.1",
     "fastclick": "^1.0.6",
     "file-saver": "^2.0.0",
+    "get-random-values": "github:ProtonMail/get-random-values.git#semver:^1.0.0",
     "hi-base32": "^0.5.0",
     "ical.js": "^1.2.2",
     "intl-tel-input": "^12.1.1",
-    "jquery": "^3.3.1",
+    "jquery": "3.4.1",
     "jquery-mousewheel": "^3.1.13",
     "jquery-timepicker": "github:KAYLukas/timepicker.git#patch-1",
     "jquery.payment": "^3.0.0",
@@ -119,10 +124,10 @@
     "lodash": "^4.17.11",
     "malihu-custom-scrollbar-plugin": "github:ProtonMail/malihu-custom-scrollbar-plugin.git#feat/fixUpdateTimeout",
     "markdown-it": "^8.4.1",
-    "mimemessage": "github:ProtonMail/mimemessage.js#v1.1.1",
+    "mimemessage": "github:ProtonMail/mimemessage.js#semver:~v1.1.4",
     "moment": "^2.23.0",
     "moment-timezone": "^0.5.23",
-    "mousetrap": "^1.6.1",
+    "mousetrap": "^1.6.2",
     "ng-intl-tel-input": "^2.0.0",
     "ng-pikaday": "github:ProtonMail/ng-pikaday.git#master",
     "ng-scrollbars": "0.0.11",
@@ -130,74 +135,82 @@
     "normalize.css": "^8.0.1",
     "nouislider": "^10.1.0",
     "papaparse": "^4.6.2",
+    "parse-domain": "^2.1.7",
     "pikaday": "^1.6.1",
-    "pmcrypto": "github:ProtonMail/pmcrypto.git#semver:~5.1.7",
+    "pm-srp": "github:ProtonMail/pm-srp.git#semver:^1.0.0",
+    "pmcrypto": "github:ProtonMail/pmcrypto.git#semver:~6.3.1",
     "popper.js": "^1.14.4",
     "prettier": "^1.15.3",
+    "proton-i18n": "github:ProtonMail/proton-i18n#semver:^2.0.0",
+    "proton-shared": "github:ProtonMail/proton-shared.git#semver:1.0.0",
+    "pt-formgenerator": "github:ProtonMail/pt-formgenerator.git#semver:^1.5.0",
+    "punycode": "^2.1.1",
     "push.js": "^1.0.7",
     "qrcodejs2": "0.0.2",
     "raven-js": "^3.27.0",
-    "sieve.js": "github:ProtonMail/sieve.js#v2.0.5",
+    "sieve.js": "github:ProtonMail/sieve.js#semver:^2.0.0",
     "squire-rte": "github:ProtonMail/Squire.git#hotfix",
     "svg4everybody": "^2.1.9",
     "text-security": "github:ProtonMail/text-security.git#f7cefd34ba13d651b51270d3014dbfcc743be08c",
     "tooltip.js": "^1.3.0",
     "turndown": "^5.0.1",
     "ua-parser-js": "^0.7.19",
+    "unfetch": "^4.2.0",
     "vcf": "github:ProtonMail/node-vcf.git#proton"
   },
   "license": "MIT",
   "scripts": {
-    "postinstall": "./tasks/checkDependencies.js",
+    "postinstall": "proton-i18n post-install && ./tasks/checkDependencies.js",
     "lint": "eslint src/app src/helpers --ext .js --quiet --cache",
     "e2e": "./tasks/lazyInstallVendor e2e && cypress run",
     "pretest": "./tasks/lazyInstallVendor test && del ./build && cross-env NODE_ENV=test npm run config",
     "test": "cross-env NODE_ENV=test karma start test/karma.conf.js",
     "testwatch": "npm test -- --auto-watch --no-single-run",
-    "postbuild:i18n": "npm run i18n",
-    "i18n:check": "tasks/noContext",
-    "preversion": "rm package-lock.json || echo 'No useless package-lock to remove'",
-    "postversion": "git push --tags",
+    "preversion": "git update-index --no-assume-unchanged package-lock.json",
+    "postversion": "git update-index --assume-unchanged package-lock.json && git push --tags && git push",
     "config": "cross-env NODE_ENV=dev NODE_ENV_MODE=config tasks/setupConfig.js",
-    "start": "cross-env NODE_ENV=dev tasks/setupConfig.js",
+    "start": "./node_modules/proton-bundler/scripts/createVersionJSON.sh && cross-env NODE_ENV=dev tasks/setupConfig.js",
     "poststart": "npm run dev",
-    "start:raw": "cross-env NODE_ENV=dev tasks/setupConfig.js",
+    "start:raw": "./node_modules/proton-bundler/scripts/createVersionJSON.sh && cross-env NODE_ENV=dev tasks/setupConfig.js",
     "poststart:raw": "npm run dev -- --no-transpile",
     "dev": "cross-env NODE_ENV=dev && webpack-dev-server --hot --progress",
-    "dist": "cross-env NODE_ENV=dist webpack --progress",
-    "build": "cross-env NODE_ENV=dev tasks/setupConfig.js",
-    "postbuild": "cross-env NODE_ENV=dev && webpack --progress",
-    "deploy": "cross-env NODE_ENV=dist tasks/deploy.js",
+    "build": "cross-env NODE_ENV=dist webpack",
+    "deploy": "cross-env NODE_ENV=dist proton-bundler --git --default-branch v3",
     "deployProd": "npm run deploy -- --branch=deploy-prod-a --flow=many",
     "build:ci": "cross-env NODE_ENV=dist NODE_ENV_DIST=ci tasks/deploy.js",
-    "releaser:extract": "releaser --config releaser.config.js --token $RELEASER_GH_TOKEN",
     "releaser:unshift": "./tasks/unshiftReleaser.sh",
-    "i18n:update": "tasks/updateTranslations.sh",
-    "i18n:extract": "tasks/extractI18N.sh",
-    "i18n:compile": "tasks/compileI18n.js",
-    "i18n:build": "npm run i18n:extract && npm run i18n:update && npm run i18n:compile",
-    "posti18n:build": "./tasks/createI18nCache.js && ./tasks/commitI18n.sh",
+    "i18n:check": "proton-i18n validate",
+    "i18n:upgrade": "proton-i18n extract --verbose && proton-i18n crowdin --verbose",
     "pretty": "prettier --write $(find src/app -type f -name '*.js')",
     "create": "appComponent",
     "create:test": "appComponent --test",
-    "cypress:open": "./tasks/lazyInstallVendor e2e && cypress open"
+    "cypress:open": "./tasks/lazyInstallVendor e2e && cypress open",
+    "bundle": "cross-env NODE_ENV=dist proton-bundler",
+    "check-types": "echo 123",
+    "i18n:validate": "echo 123",
+    "i18n:validate:context": "proton-i18n extract && npm run i18n:check -- --debug"
   },
   "lint-staged": {
-    "*.js": [
-      "prettier --write",
-      "git add"
-    ],
-    "env/env.json": [
-      "tasks/checkEnv.js"
+    "linters": {
+      "*.js": [
+        "prettier --write",
+        "git add"
+      ],
+      "env/env.json": [
+        "tasks/checkEnv.js"
+      ]
+    },
+    "ignore": [
+      "static/*"
     ]
   },
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=12.0.0"
   },
-  "version": "3.15.12",
+  "version": "3.16.65",
   "husky": {
     "hooks": {
-      "pre-commit": "./tasks/metrics.sh"
+      "pre-commit": "git update-index --assume-unchanged package-lock.json && ./tasks/metrics.sh"
     }
   }
 }

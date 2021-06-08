@@ -1,9 +1,8 @@
 import _ from 'lodash';
 
-import { MESSAGE_FLAGS, SEND_TYPES } from '../../constants';
+import { SEND_TYPES } from '../../constants';
 import displaySignatureStatus from '../../../helpers/displaySignatureStatus';
-
-const { FLAG_INTERNAL } = MESSAGE_FLAGS;
+import { isDraft, isSent, isReplied, isRepliedAll, isForwarded } from '../../../helpers/message';
 
 const CLASSNAME = {
     UNDISCLOSED: 'message-undisclosed'
@@ -59,6 +58,25 @@ function message(
         link(scope, element) {
             const { on, dispatcher, unsubscribe } = dispatchers(['messageActions', 'composer.load', 'tooltip']);
 
+            scope.getClassNames = (message = {}, marked = {}) => {
+                const { Address = [] } = message.Sender || {};
+                const hasSender = Address.length;
+
+                return {
+                    hasSender,
+                    open: message.expand,
+                    marked: message.ID === marked.ID,
+                    unread: message.Unread === 1,
+                    details: message.toggleDetails === true,
+                    draft: isDraft(message),
+                    sent: isSent(message),
+                    'message-is-replied': isReplied(message),
+                    'message-is-repliedall': isRepliedAll(message),
+                    'message-is-forwarded': isForwarded(message),
+                    'message-mode-plain': message.viewMode === 'plain'
+                };
+            };
+
             const bindClasses = (message) => {
                 element[0].classList[noRecipients(message) ? 'add' : 'remove'](CLASSNAME.UNDISCLOSED);
             };
@@ -70,7 +88,7 @@ function message(
             };
 
             const reloadEncryptionTooltip = () => {
-                dispatcher.tooltip('reloadEncryptionTooltip', { messageID: scope.message.ID });
+                dispatcher.tooltip('reloadEncryptionTooltip', { message: scope.message });
             };
 
             const updateMessage = async (promise) => {
@@ -81,7 +99,6 @@ function message(
                     .then(({ [scope.message.SenderAddress]: { pinned, scheme, isVerified } }) =>
                         scope.$applyAsync(() => {
                             const isInternal = scheme === SEND_TYPES.SEND_PM;
-                            isInternal && scope.message.addFlag(FLAG_INTERNAL);
                             scope.message.promptKeyPinning =
                                 !pinned && mailSettingsModel.get('PromptPin') && isInternal;
                             scope.message.askResign = pinned && !isVerified;

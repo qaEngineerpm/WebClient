@@ -86,7 +86,6 @@
 
 .dropdown-folder-create .dropdown-folder-create-button,
 .dropdown-folder-create .dropdown-folder-create-button:hover {
-    box-sizing: border-box;
     height: initial;
     min-height: 40px;
     width: 100%;
@@ -103,6 +102,11 @@
     box-shadow: none;
 }
 
+.dropdown-folder-create-button-inner {
+    border: 1px solid transparent; // yes, this makes no sense, but fixes a glitch bug on Edge
+    // see https://github.com/ProtonMail/Angular/issues/8586
+}
+
 .dropdown-folder-create-button > * {
     pointer-events: none;
 }
@@ -110,7 +114,6 @@
 .appConfigBody-is-mobile {
     .dropdown-folder-scrollbox-group-item  {
         padding: 0;
-        box-sizing: border-box;
         margin-bottom: 5px;
     }
     .dropdown-folder-scrollbox-group-item-button {

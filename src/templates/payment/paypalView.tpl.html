@@ -1,30 +1,45 @@
-<div class="paypal-container">
-
-    <p class="alert alert-info" ng-show="!paypalNetworkError" translate-context="Info" translate>You will need to login to your PayPal account to complete this transaction. We will open a new tab with PayPal for you. If you use any pop-up blockers, please disable them to continue.</p>
-
-    <p class="alert alert-danger" ng-show="paypalNetworkError">
-        <span translate-context="Error" translate>Error connecting to PayPal.</span> <a href="#" ng-click="initPaypal()" translate-context="Action" translate>Click here to try again</a>.
-    </p>
-
-    <p class="alert alert-danger paypal-error-amount" ng-if="errorDetails" data-type="{{errorDetails.validator}}">
-        <span
-            class="paypal-error-max"
-            translate-context="Paypal error"
-            translate>Amount above the maximum.</span>
-        <span
-            class="paypal-error-min"
-            translate-context="Paypal error"
-            translate>Amount below minimum.</span> ({{ errorDetails.amount / 100 }} {{ currency }})
-    </p>
-
-    <div class="text-center" ng-show="!approvalURL && !paypalNetworkError && !errorDetails">
-        <i class="fa fa-spin fa-spinner"></i>
-        <span translate-context="Info" translate>Loading...</span>
+<div class="paypal-container margin-top">
+    <div class="alert alert-danger" ng-if="errorDetails">
+        <div ng-if="errorDetails.validator === 'tokens'">
+            <div class="margin-bottom" translate-context="PayPal error" translate>Please verify you are human.</div>
+            <button class="pm_button" type="button" ng-click="retry()" translate-context="Action" translate>Retry</button>
+        </div>
+        <span ng-if="errorDetails.validator === 'duckduckgo'" translate-context="PayPal error" translate>The browser you are using does not allow the payment to be fully authorized. Please use a different browser or log in via a computer.</span>
+        <span ng-if="errorDetails.validator === 'min'" translate-context="Paypal error" translate>Amount below minimum.</span>
+        <span ng-if="errorDetails.validator === 'max'" translate-context="Paypal error" translate>Amount above the maximum.</span>
+        <span ng-if="errorDetails.validator === 'min' || errorDetails.validator === 'max'">({{ errorDetails.amount / 100 }} {{ currency }})</span>
     </div>
 
-    <div class="text-center" ng-show="approvalURL">
-        <a href="#" ng-click="openPaypalTab()">
-            <img src="/assets/img/settings/paypal.png" alt="Paypal button" />
-        </a>
+    <div ng-if="loadingTokens">
+        <loader-tag></loader-tag>
+    </div>
+
+    <div ng-if="loadingVerification" class="text-center">
+        <p translate-context="Info" translate>Please verify your PayPal account at the new tab which was opened.</p>
+        <loader-tag></loader-tag>
+        <p translate-context="Info" translate>Verification can take a few minutes.</p>
+    </div>
+
+    <div ng-if="!errorDetails && !loadingTokens && !loadingVerification && !isDonation && !isUpdate">
+        <p class="alert alert-info" translate-context="Info" translate>We will redirect you to PayPal in a new browser tab to complete this transaction. If you use any pop-up blockers, please disable them to continue.</p>
+        <div class="margin-bottom">
+            <button class="pm_button primary" type="button" ng-click="openTab(paypalModel)" translate-context="Action" translate>Check out with PayPal</button>
+        </div>
+        <p class="alert alert-info">
+            <span translate-context="Info" translate>You must have a credit card or bank account linked with your PayPal account. If your PayPal account doesn't have that, please</span> <a href="#" ng-click="openTab(paypalCreditModel)" translate-context="Link" translate>click here</a>.
+        </p>
+    </div>
+
+    <div ng-if="!errorDetails && !loadingTokens && !loadingVerification && isUpdate">
+        <p class="alert alert-info" translate-context="Info" translate>This will enable PayPal to be used to pay for your Proton subscription. We will redirect you to PayPal in a new browser tab. If you use any pop-up blockers, please disable them to continue.</p>
+        <div class="margin-bottom">
+            <button class="pm_button primary" type="button" ng-click="openTab(paypalModel)" translate-context="Action" translate>Add PayPal payment method</button>
+        </div>
+        <p class="alert alert-info" translate-context="Info" translate>You must have a credit card or bank account linked with your PayPal account in order to add it as a payment method.</p>
+    </div>
+
+    <div ng-if="!errorDetails && !loadingTokens && !loadingVerification && isDonation">
+        <p class="alert alert-info" translate-context="Info" translate>We will redirect you to PayPal in a new browser tab to complete this transaction. If you use any pop-up blockers, please disable them to continue.</p>
+        <button class="pm_button primary" type="button" ng-click="openTab(paypalCreditModel)" translate-context="Action" translate>Check out with PayPal</button>
     </div>
 </div>

@@ -14,11 +14,15 @@ describe('http interceptor', () => {
     };
     const appModelMock = {};
     const networkUtilsMock = {};
+    const loggedOutSessions = {
+        hasUID() {}
+    };
 
     let instance;
 
     const config = {
-        url: 'api/users'
+        url: 'api/users',
+        headers: {}
     };
 
     beforeEach(() => {
@@ -31,6 +35,7 @@ describe('http interceptor', () => {
         MOCKS.notification.closeAll = jasmine.createSpy('closeAll');
         MOCKS.notification.disableClose = jasmine.createSpy('disableClose');
         MOCKS.handle401 = jasmine.createSpy('handle401');
+        MOCKS.handle429 = jasmine.createSpy('handle429');
         MOCKS.handle9001 = jasmine.createSpy('handle9001');
         MOCKS.unlockUser = jasmine.createSpy('unlockUser');
         MOCKS.$http = jasmine.createSpy('$http');
@@ -42,7 +47,7 @@ describe('http interceptor', () => {
             .and
             .callFake((arg) => Promise.reject(arg));
 
-        instance = service($qMock, $injectorMock, appModelMock, networkUtilsMock);
+        instance = service($qMock, $injectorMock, appModelMock, networkUtilsMock, loggedOutSessions);
     });
 
     describe('offline', () => {
@@ -98,7 +103,8 @@ describe('http interceptor', () => {
 
     describe('http status', () => {
         const config = {
-            url: 'api/users'
+            url: 'api/users',
+            headers: {}
         };
 
         [400, 402, 404, 500, 0, -1, -2].forEach((status) => {
@@ -134,6 +140,13 @@ describe('http interceptor', () => {
             expect(MOCKS.unlockUser)
                 .toHaveBeenCalled();
             expect(MOCKS.$http)
+                .toHaveBeenCalled();
+        });
+
+        it('should handle 429', async () => {
+            MOCKS.handle429.and.returnValue(Promise.resolve());
+            await instance.responseError({ status: 429, config, headers: () => '100' });
+            expect(MOCKS.handle429)
                 .toHaveBeenCalled();
         });
 

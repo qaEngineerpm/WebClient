@@ -1,22 +1,13 @@
-<article class="message" ng-class="{
-    'open': message.expand,
-    'marked': message.ID === marked.ID,
-    'unread': message.Unread === 1,
-    'details': message.toggleDetails === true,
-    'draft': message.isDraft(),
-    'sent': message.isSent(),
-    'hasSender': message.Sender.Address.length,
-    'message-mode-plain': message.viewMode === 'plain'
-}">
+<article class="message" ng-class="getClassNames(message, marked)">
 
     <div class="summary" data-toggle-message>
 
         <div class="summary-left">
             <div class="meta">
 
-                <i class="history fa fa-reply" ng-if="message.isReplied()"></i>
-                <i class="history fa fa-reply-all" ng-if="message.isRepliedAll()"></i>
-                <i class="history fa fa-mail-forward" ng-if="message.isForwarded()"></i>
+                <i class="history fa fa-reply" data-if-is="replied"></i>
+                <i class="history fa fa-reply-all" data-if-is="repliedall"></i>
+                <i class="history fa fa-mail-forward" data-if-is="forwarded"></i>
 
                 <div class="contact message-contact">
 
@@ -231,12 +222,13 @@
                                 <i class="fa fa-times dropdown-actions-nowrap-icon"></i>
                                 <span class="dropdown-actions-nowrap-textContainer" translate translate-context="Action">Delete</span>
                             </button>
-                            <button data-action-message="togglePlainHtml">
-                                <span class="dropdown-actions-nowrap-button" ng-show="message.viewMode === 'html'">
+                            <button class="dropdown-actions-nowrap-button" data-action-message="togglePlainHtml"
+                            data-message-mode="{{ message.viewMode }}">
+                                <span class="dropdown-actions-nowrap-button" data-if-message-mode="html">
                                     <i class="fa fa-file-text-o dropdown-actions-nowrap-icon"></i>
                                     <span class="dropdown-actions-nowrap-textContainer" translate translate-context="Action">View source code</span>
                                 </span>
-                                <span class="dropdown-actions-nowrap-button" ng-show="message.viewMode === 'plain'">
+                                <span class="dropdown-actions-nowrap-button" data-if-message-mode="plain">
                                     <i class="fa fa-file-photo-o dropdown-actions-nowrap-icon"></i>
                                     <span class="dropdown-actions-nowrap-textContainer" translate translate-context="Action">View rendered HTML</span>
                                 </span>

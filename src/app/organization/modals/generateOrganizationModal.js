@@ -1,5 +1,8 @@
 import _ from 'lodash';
 import { decryptPrivateKey, encryptMessage, encryptPrivateKey } from 'pmcrypto';
+import { computeKeyPassword, generateKeySalt } from 'pm-srp';
+
+import { DEFAULT_ENCRYPTION_CONFIG } from '../../constants';
 
 /* @ngInject */
 function generateOrganizationModal(
@@ -7,7 +10,6 @@ function generateOrganizationModal(
     authentication,
     networkActivityTracker,
     organizationApi,
-    passwords,
     setupKeys,
     loginPasswordModal,
     notification,
@@ -18,15 +20,14 @@ function generateOrganizationModal(
         templateUrl: require('../../../templates/modals/generateOrganization.tpl.html'),
         /* @ngInject */
         controller: function(params) {
-            // Parameters
-            this.size = 2048;
+            this.encryptionConfigName = DEFAULT_ENCRYPTION_CONFIG;
             this.newRecoveryPassword = '';
             this.confirmRecoveryPassword = '';
             this.otherAdmins = params.otherAdmins;
+            this.size = this.encryptionConfigName;
 
-            // Functions
             this.submit = () => {
-                const numBits = this.size;
+                const encryptionConfigName = this.size || this.encryptionConfigName;
                 const password = this.newRecoveryPassword;
 
                 let decryptedKey;
@@ -35,7 +36,7 @@ function generateOrganizationModal(
 
                 return networkActivityTracker.track(
                     setupKeys
-                        .generateOrganization(authentication.getPassword(), numBits)
+                        .generateOrganization(authentication.getPassword(), encryptionConfigName)
                         .then(({ privateKeyArmored }) => {
                             payload.PrivateKey = privateKeyArmored;
                             return privateKeyArmored;
@@ -47,10 +48,9 @@ function generateOrganizationModal(
                             const promises = [];
 
                             // Backup key
-                            payload.BackupKeySalt = passwords.generateKeySalt();
+                            payload.BackupKeySalt = generateKeySalt();
                             promises.push(
-                                passwords
-                                    .computeKeyPassword(password, payload.BackupKeySalt)
+                                computeKeyPassword(password, payload.BackupKeySalt)
                                     .then((keyPassword) => encryptPrivateKey(pkg, keyPassword))
                                     .then((armored) => {
                                         payload.BackupPrivateKey = armored;
@@ -68,7 +68,7 @@ function generateOrganizationModal(
                                 _.each(memberKeys, (key) => {
                                     promises.push(
                                         setupKeys
-                                            .decryptMemberToken(key, params.existingKey)
+                                            .decryptMemberToken(key, [params.existingKey])
                                             .then(({ decryptedToken }) =>
                                                 encryptMessage({
                                                     data: decryptedToken,
@@ -99,7 +99,7 @@ function generateOrganizationModal(
                                                 };
 
                                                 organizationApi
-                                                    .replaceKeys(payload, creds)
+                                                    .replaceKeys(creds, payload)
                                                     .then(() => {
                                                         notification.success(
                                                             gettextCatalog.getString(

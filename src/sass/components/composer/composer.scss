@@ -41,8 +41,12 @@
         background:$white;
         will-change: transform;
 
-        header, footer, .row {
-          line-height: $composerRowHeight;
+        header, footer {
+            line-height: $composerRowHeight;
+        }
+
+        .row {
+            line-height: #{$composerRowHeight+1px}; // fixes a zoom bug for Chrome
         }
 
         .composer-meta:not(.composer-toggle-ccbcc) .ccRow,
@@ -164,7 +168,6 @@
             line-height: $composerRowHeight;
             padding: 0 10px;
             cursor: pointer;
-            box-sizing: border-box;
             z-index: 7;
             border-top: 1px solid $border;
             background: $tertiary;
@@ -187,7 +190,6 @@
 
             overflow: auto;
             -webkit-overflow-scrolling: touch;
-            box-sizing: border-box;
             background: $tertiary;
 
             .preview-close {
@@ -238,7 +240,6 @@
                     color: $default-color;
                     border-radius: 2px;
                     width: 45%;
-                    box-sizing: border-box;
                     white-space: nowrap;
                     position: relative;
                     .preview-name {
@@ -308,7 +309,6 @@
             width: calc(100% - #{$sidebarWidth} - 40px);
             height: auto !important;
             max-height: 100%;
-            box-sizing: border-box;
             margin: 0;
             overflow: auto;
 
@@ -476,6 +476,7 @@
         .composer-btn-expiration.primary svg {
             fill: $white;
         }
+
     }
 
 
@@ -520,6 +521,14 @@
     }
 }
 
+/* when composer not maximized, text should be visually hidden */
+.composer:not(.maximized) {
+    .composer-btn-save-text,
+    .composer-btn-discard-text {
+        @extend .sr-only;
+    }
+}
+
 /* RESPONSIVE */
 
 @media screen and (max-width: $mobile-landscape) {
@@ -553,8 +562,20 @@
     #pm_composer footer {
         .pm_button {
             padding:0px 10px !important;
-            span {
-                display: none;
+            .composer-btn-save-text,
+            .composer-btn-discard-text {
+                /* equiv .sr-only
+                 * but impossible to extend a class
+                 * defined outside a breakpoint
+                 */
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                border: 0;
             }
             &.mobileFull {
                 span {

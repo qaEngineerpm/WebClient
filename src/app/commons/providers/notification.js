@@ -19,13 +19,20 @@ function notification() {
         'notify',
         '$cacheFactory',
         'sanitize',
-        (notify, $cacheFactory, sanitize) => {
+        'gettextCatalog',
+        'translator',
+        (notify, $cacheFactory, sanitize, gettextCatalog, translator) => {
+            const I18N = translator(() => ({
+                UNDO: gettextCatalog.getString('UNDO', null, 'Link in notification to undo an action')
+            }));
+
             // LRU cache containing notification texts -> timestamp
             const cache = $cacheFactory('notifications', { number: 5 });
 
             const action = (type) => (input, options = {}) => {
                 const message = input instanceof Error ? input.message : input;
                 options.classes = `${options.classes || ''} ${CONFIG.classNames[type]}`.trim();
+                options.onClickClose = true;
 
                 const htmlInfo = isHTML(message);
 
@@ -51,6 +58,12 @@ function notification() {
 
                 if (type === 'error' && typeof options.duration === 'undefined') {
                     options.duration = 10000;
+                }
+
+                if (options.undo) {
+                    const content = sanitize.input(message);
+                    options.onClick = options.undo;
+                    options.messageTemplate = `<div>${content} <a href="#">${I18N.UNDO}</a></div>`;
                 }
 
                 notify({ message, ...options, onClose });

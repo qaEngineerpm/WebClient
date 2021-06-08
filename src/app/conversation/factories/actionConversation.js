@@ -9,6 +9,7 @@ import { getLabelIDsMoved } from '../../../helpers/message';
 /* @ngInject */
 function actionConversation(
     cache,
+    canUndo,
     contactSpam,
     conversationApi,
     dispatchers,
@@ -392,13 +393,15 @@ function actionConversation(
      * @param {Array} conversationIDs
      * @param {String} labelID
      */
-    function move(conversationIDs = [], labelID = '') {
+    function move(conversationIDs = [], labelID = '', undo = true) {
+        const currentLocation = tools.currentLocation();
         const folders = labelsModel.ids('folders');
         const labels = labelsModel.ids('labels');
         const toTrash = labelID === MAILBOX_IDENTIFIERS.trash;
         const toSpam = labelID === MAILBOX_IDENTIFIERS.spam;
         const promise = conversationApi.label(labelID, conversationIDs);
         const folderName = getFolderNameTranslated(labelID);
+        const notifyParameters = {};
 
         const successMessage = gettextCatalog.getPlural(
             conversationIDs.length,
@@ -410,7 +413,16 @@ function actionConversation(
             },
             'Info'
         );
-        const displaySuccess = () => notification.success(successMessage);
+
+        if (undo && canUndo()) {
+            notifyParameters.undo = () => {
+                move(conversationIDs, currentLocation, false);
+            };
+        }
+
+        const displaySuccess = () => {
+            notification.success(successMessage, notifyParameters);
+        };
 
         const folderIDs = basicFolders.concat(folders).concat(toSpam || toTrash ? labels : []);
 
@@ -422,17 +434,17 @@ function actionConversation(
         }
 
         // Generate cache events
-        const events = _.reduce(
+        const { events, toSpamList } = _.reduce(
             conversationIDs,
             (acc, ID) => {
                 const messages = cache.queryMessagesCached(ID);
 
                 _.each(messages, (message) => {
                     const { LabelIDs = [], ID, Unread } = message;
-                    const copyLabelIDsAdded = getLabelIDsMoved(labelID, message);
+                    const copyLabelIDsAdded = getLabelIDsMoved(message, labelID);
                     const copyLabelIDsRemoved = _.filter(LabelIDs, (labelID) => _.includes(folderIDs, labelID));
 
-                    acc.push({
+                    acc.events.push({
                         ID,
                         Action: 3,
                         Message: {
@@ -449,7 +461,7 @@ function actionConversation(
                 if (conversation) {
                     if (toSpam) {
                         const { Senders = [] } = conversation;
-                        contactSpam(Senders.map(({ Address = '' }) => Address).filter(Boolean));
+                        acc.toSpamList.push(...Senders);
                     }
 
                     const Labels = conversation.Labels.reduce(
@@ -471,7 +483,7 @@ function actionConversation(
                         ]
                     );
 
-                    acc.push({
+                    acc.events.push({
                         Action: 3,
                         ID,
                         Conversation: {
@@ -484,9 +496,25 @@ function actionConversation(
 
                 return acc;
             },
-            []
+            {
+                events: [],
+                toSpamList: []
+            }
         );
 
+        // Create a list of unique Address we send to spam
+        const { list: spamEmails } = toSpamList.reduce(
+            (acc, { Address = '' }) => {
+                if (Address && !acc.map[Address]) {
+                    acc.list.push(Address);
+                    acc.map[Address] = true;
+                }
+                return acc;
+            },
+            { list: [], map: Object.create(null) }
+        );
+
+        spamEmails.length && contactSpam(spamEmails);
         cache.events(events);
         displaySuccess();
     }

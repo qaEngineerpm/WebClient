@@ -36,6 +36,17 @@ const sidebarLabels = (dispatchers, manageContactGroup, needUpgrade) => ({
             _rAF(() => scope.$applyAsync(() => scope.updateScrollbar('update')));
         };
 
+        /**
+         * Force update after initial layout.
+         * Related to issue https://github.com/ProtonMail/Angular/issues/8718.
+         */
+        _rAF(() => {
+            onResize();
+            scope.$applyAsync(() => {
+                scope.updateScrollbar('scrollTo', 0);
+            });
+        });
+
         const onVisibilitychange = onResize;
 
         const dragEnter = (e) => {
@@ -63,7 +74,7 @@ const sidebarLabels = (dispatchers, manageContactGroup, needUpgrade) => ({
 
         const debouncedDe = _.debounce(dragEnter, 250);
 
-        if (type === 'groups') {
+        if (type === 'contact') {
             const onClick = (e) => {
                 if (e.target.nodeName === 'A' || e.currentTarget.nodeName === 'A') {
                     e.preventDefault();

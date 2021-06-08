@@ -1,4 +1,3 @@
-const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -20,14 +19,14 @@ const makeSRC = (list) => list.map((file) => path.resolve(file));
 
 const isDistRelease = env.isDistRelease();
 
-const { mainFiles: openpgpFiles, workerFiles: openpgpWorkerFiles } = transformOpenpgpFiles(
+const { main, elliptic, worker, compat, definition } = transformOpenpgpFiles(
     CONFIG.externalFiles.openpgp,
-    CONFIG.externalFiles.openpgp_workers,
+    CONFIG.externalFiles.openpgpElliptic,
+    CONFIG.externalFiles.openpgpWorker,
     isDistRelease
 );
 
 // We don't need to transpile it
-const CHECK_COMPAT_APP = 'checkCompatApp.js';
 
 const minify = () => {
     if (!isDistRelease) {
@@ -44,6 +43,11 @@ const minify = () => {
     };
 };
 
+const hashHashier = () =>
+    `pt${Math.random()
+        .toString(32)
+        .slice(2, 12)}-${Date.now()}`;
+
 const list = [
     // HashedModuleIdsPlugin recommended for production https://webpack.js.org/guides/caching/
     isDistRelease ? new webpack.HashedModuleIdsPlugin() : new webpack.NamedModulesPlugin(),
@@ -55,55 +59,48 @@ const list = [
             to: 'assets/fonts',
             flatten: true
         })),
-
-        { from: 'src/i18n', to: 'i18n' },
+        { from: 'node_modules/proton-translations', to: 'i18n' },
+        { from: CONFIG.externalFiles.formgenerator, to: 'form' },
         { from: 'src/assets', to: 'assets' }
     ]),
 
-    new WriteWebpackPlugin([
-        ...openpgpFiles.concat(openpgpWorkerFiles).map(({ filepath, contents }) => ({
+    new WriteWebpackPlugin(
+        [main, elliptic, compat, worker].map(({ filepath, contents }) => ({
             name: filepath,
             data: Buffer.from(contents)
         }))
-    ]),
+    ),
 
     new MiniCssExtractPlugin({
-        filename: isDistRelease ? '[name].[hash:8].css' : '[name].css',
-        chunkFilename: isDistRelease ? '[id].[hash:8].css' : '[id].css'
+        filename: isDistRelease ? '[name].[hash:10].css' : '[name].css',
+        chunkFilename: isDistRelease ? '[id].[hash:10].css' : '[id].css'
     }),
 
     new HtmlWebpackPlugin({
         template: 'src/app.ejs',
         inject: 'body',
-        defer: ['app'],
-        minify: minify(),
-        templateParameters: {
-            OPENPGP: openpgpFiles[0].filepath,
-            OPENPGP_INTEGRITY: openpgpFiles[0].integrity,
-            OPENPGP_COMPAT: openpgpFiles[1].filepath,
-            OPENPGP_COMPAT_INTEGRITY: openpgpFiles[1].integrity
-        }
+        minify: minify()
     }),
 
     new SriPlugin({
         hashFuncNames: ['sha384'],
-        enabled: isDistRelease
+        enabled: isDistRelease,
+        ignored: /index.+\.css$/
     }),
 
     new webpack.DefinePlugin({
-        // Needs to be wrapped in strings because webpack does a direct replace
-        OPENPGP_WORKER: JSON.stringify(openpgpWorkerFiles[0].filepath),
-        OPENPGP_WORKER_COMPAT: JSON.stringify(openpgpWorkerFiles[1].filepath)
+        PM_OPENPGP: JSON.stringify(definition),
+        HASH_FORM_CHALLENG1: JSON.stringify(hashHashier()),
+        HASH_FORM_CHALLENG2: JSON.stringify(hashHashier())
     }),
 
     new ScriptExtHtmlWebpackPlugin({
-        sync: path.basename(CHECK_COMPAT_APP, 'js'),
         defaultAttribute: 'defer'
     }),
 
     new webpack.SourceMapDevToolPlugin({
-        filename: isDistRelease ? '[name].[hash:8].js.map' : '[name].js.map',
-        exclude: ['styles', 'checkCompatApp', 'vendor', 'vendorLazy', 'vendorLazy2']
+        filename: '[file].map',
+        exclude: ['styles', 'vendor', 'vendorLazy', 'vendorLazy2', 'vendorEncoder']
     })
 ];
 
@@ -113,7 +110,7 @@ if (!isDistRelease) {
     list.push(
         new AutoDllPlugin({
             inject: true, // will inject the DLL bundles to index.html
-            filename: '[name]_[hash].js'
+            filename: '[name]_[contenthash].js'
         })
     );
 }
@@ -125,6 +122,7 @@ if (isDistRelease) {
                 preset: [
                     'default',
                     {
+                        normalizeUrl: false, // ultra super very important
                         reduceInitial: false,
                         discardComments: {
                             removeAll: true

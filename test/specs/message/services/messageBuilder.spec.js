@@ -425,6 +425,7 @@ describe('messageBuilder factory', () => {
     let spyMessageModelMock = jasmine.createSpy();
     let spyLocalReadableTime = jasmine.createSpy();
     let spyPrepareContent = jasmine.createSpy();
+    let spyTranslator = jasmine.createSpy();
     let userMock = { Signature: '', DraftMIMEType: 'text/html' };
 
     let rootScope, factory;
@@ -440,6 +441,12 @@ describe('messageBuilder factory', () => {
     const prepareContent = (...args) => {
         spyPrepareContent(...args);
         return 'prepareContent';
+    };
+
+    const pgpMimeAttachments = {
+        clean(attachments) { return attachments; },
+        filter() { return []; },
+        handle() {}
     };
 
     const composerFromModel = {
@@ -488,6 +495,13 @@ Est-ce que tu vas bien ?
         spyMessageModelMock(data);
         return new Message(data);
     };
+
+    const translator = (cb) => {
+        const data = cb();
+        spyTranslator(data);
+        return data;
+    };
+
     beforeEach(angular.mock.module('ng', ($provide) => {
         $provide.factory('localReadableTimeFilter', () => (...args) => {
             spyLocalReadableTime(...args);
@@ -507,8 +521,10 @@ Est-ce que tu vas bien ?
                 gettextCatalog,
                 mailSettingsModel,
                 messageModelMock,
+                pgpMimeAttachments,
                 prepareContent,
                 signatureBuilder,
+                translator,
                 textToHtmlMail);
 
             DEFAULT_MESSAGE = {
@@ -518,6 +534,7 @@ Est-ce que tu vas bien ?
                 CCList: [],
                 BCCList: [],
                 Attachments: [],
+                pgpMimeAttachments: [],
                 numTags: [],
                 recipientFields: [],
                 MIMEType: 'text/html',
@@ -525,6 +542,7 @@ Est-ce que tu vas bien ?
                 Subject: '',
                 PasswordHint: '',
                 ExpirationTime: 0,
+                ExpiresIn: 0,
                 From: TESTABLE_ADDRESS_DEFAULT,
                 uploading: 0,
                 toFocussed: false,
@@ -538,6 +556,21 @@ Est-ce que tu vas bien ?
             };
         })
     );
+
+    it('should load translations', () => {
+        expect(spyTranslator).toHaveBeenCalledTimes(2);
+        expect(spyTranslator).toHaveBeenCalledWith({
+            RE_PREFIX: jasmine.any(String),
+            FW_PREFIX: jasmine.any(String)
+        });
+
+        expect(spyTranslator).toHaveBeenCalledWith({
+            TITLE_ENCRYPTED_SUBJECT: jasmine.any(String),
+            YES_CONFIRM: jasmine.any(String),
+            NO_CONFIRM: jasmine.any(String),
+            encryptedSubjectMessage: jasmine.any(Function)
+        });
+    })
 
     describe('Prepare sanitizes content with prepareContent', () => {
         it('should use the signatureBuilder factory', () => {
@@ -1270,6 +1303,10 @@ Est-ce que tu vas bien ?
 
                 it('should set a value to ExpirationTime', () => {
                     expect(item.ExpirationTime).toBe(DEFAULT_MESSAGE_COPY.ExpirationTime);
+                });
+
+                it('should set a value to ExpiresIn', () => {
+                    expect(item.ExpiresIn).toBe(DEFAULT_MESSAGE_COPY.ExpiresIn);
                 });
 
                 it('should set a value to From', () => {

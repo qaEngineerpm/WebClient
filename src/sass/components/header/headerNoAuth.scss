@@ -1,5 +1,4 @@
 .headerNoAuth-container {
-    box-sizing: border-box;
     height: 0; /* IE */
     min-height: $headerHeight;
     background: $secondary;
@@ -62,15 +61,25 @@
     color: currentColor;
 }
 
-/* 'login' class is applyied on body when !isLoggedIn */
-
-/* authenticated */
-body:not(.login) .headerNoAuth-container [class*='__noAuth'] { display: none }
-/* not authenticated */
-.login .headerNoAuth-container [class*='__Auth'] { display: none }
-.login .headerNoAuth-container [class*='__noAuth'] { display: flex }
-
-body#signup .headerNoAuth-item-signup__noAuth { display: none }
-
 /* mobile */
 body.appConfigBody-is-mobile .headerNoAuth-item-report { display: none }
+
+body#login-sub,
+body#login-setup {
+    .headerNoAuth-item-noAuth { display: none }
+    .headerNoAuth-item-auth { display: flex }
+}
+
+body#signup .headerNoAuth-signup { display: none }
+
+body.unlock .headerNoAuth-item-noAuth { display: none }
+body:not(.unlock) .headerNoAuth-item-auth,
+.headerNoAuth-item-noAuth-eo { display: none }
+
+/* mobile */
+.appConfigBody-is-mobile .headerNoAuth-item-report { display: none }
+.appConfigBody-is-mobile .headerNoAuth-item-signup-button {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 9rem;
+}

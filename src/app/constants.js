@@ -4,9 +4,9 @@ export const EMBEDDED = 2;
 export const MODAL_Z_INDEX = 11000;
 export const CONVERSATION_REQUEST_SIZE = 10;
 export const GIFT_CODE_LENGTH = 16;
-export const MESSAGE_MAX_RECIPIENTS = 100;
 export const MAX_OUTSIDE_REPLY = 4;
-export const MAILBOX_PASSWORD_KEY = 'proton:mailbox_pwd';
+export const EO_DECRYPTED_TOKEN_KEY = 'proton:decrypted_token';
+export const EO_PASSWORD_KEY = 'proton:encrypted_password';
 export const WHITELIST = ['notify@protonmail.com'];
 export const MAX_TITLE_LENGTH = 255;
 export const AWESOMEPLETE_MAX_ITEMS = 20;
@@ -18,19 +18,24 @@ export const CURRENCIES = ['USD', 'EUR', 'CHF'];
 export const BILLING_CYCLE = [1, 12, 24];
 export const PHOTO_PLACEHOLDER_URL = '/assets/img/photo-placeholder.png';
 export const INVITE_URL = 'https://protonmail.com/invite';
-export const OAUTH_KEY = 'proton:oauth';
 export const CUSTOM_DOMAIN_ADDRESS = 3;
 export const MESSAGE_VIEW_MODE = 1;
 export const CONVERSATION_VIEW_MODE = 0;
 export const ROW_MODE = 1;
 export const COLUMN_MODE = 0;
-export const ENCRYPTION_DEFAULT = 2048;
+export const DEFAULT_ENCRYPTION_CONFIG = 'RSA2048';
+export const ENCRYPTION_CONFIGS = {
+    X25519: { curve: 'ed25519' },
+    RSA4096: { numBits: 4096 },
+    RSA2048: { numBits: 2048 }
+};
 export const MAX_SIZE_SCREENSHOT = 500 * 1000;
 export const CLIENT_TYPE = 1;
 export const CONTACT_EMAILS_LIMIT = 1000;
 export const CONTACTS_LIMIT = 1000;
-export const EXPORT_CONTACTS_LIMIT = 50;
-export const MAX_VPN = 500;
+export const EXPORT_CONTACTS_LIMIT = 50; // Maximum page size for export is 50 from API
+export const CONTACTS_REQUESTS_PER_SECOND = 10;
+export const MAX_VPN = 1000;
 export const MAX_MEMBER = 100;
 export const HUGE_MEMBER = 5000;
 export const TIMEOUT = 30 * 1000; // timeout in milliseconds
@@ -42,8 +47,7 @@ export const PM_ALIAS = 2;
 export const REPLY = 0;
 export const REPLY_ALL = 1;
 export const FORWARD = 2;
-// FIXME FILTER MIGRATION: CHANGE FILTER VERSION TO 2 ONCE API IS READY
-export const FILTER_VERSION = 1;
+export const FILTER_VERSION = 2;
 export const ATTACHMENT_SIZE_LIMIT = 25; // MB
 export const ATTACHMENT_NUMBER_LIMIT = 100;
 export const MAX_NUMBER_COMPOSER = 3;
@@ -74,6 +78,9 @@ export const INVOICE_STATE = {
     BILLED: 3
 };
 
+export const MAX_RETRY_AFTER_TIMEOUT = 10; // seconds
+export const MAX_RETRY_AFTER_ATTEMPT = 5; // how many times to try the same request
+
 export const TIMEOUT_PRELOAD_MESSAGE = 500; // milliseconds
 export const UPLOAD_GRADIENT_DARK = '147, 145, 209'; // dark rgb color for upload progress bar
 export const UPLOAD_GRADIENT_LIGHT = '255, 255, 255'; // light rgb color for upload progress bar
@@ -88,11 +95,11 @@ export const HD_BREAKPOINT = 1920;
 export const DESKTOP_BREAKPOINT = 1200;
 export const ROW_BREAKPOINT = 960;
 export const MOBILE_BREAKPOINT = 800;
-export const MIN_PAYPAL_AMOUNT = 500;
+export const MIN_PAYPAL_AMOUNT = 200;
 export const MAX_PAYPAL_AMOUNT = 99999900;
 export const SIGNATURE_START = 1546300800; // January 1, 2019
 export const MIN_BITCOIN_AMOUNT = 500;
-export const BTC_DONATION_ADDRESS = '1Q1nhq1NbxPYAbw1BppwKbCqg58ZqMb9A8';
+export const BTC_DONATION_ADDRESS = '1NLTg5PbVKAvfUBte2RmkymsUQGjtY2Z4s';
 export const IFRAME_SECURE_ORIGIN = 'https://secure.protonmail.com';
 export const DEFAULT_CURRENCY = 'EUR';
 export const CHANGELOG_PATH = 'assets/changelog.tpl.html';
@@ -200,6 +207,7 @@ export const MESSAGE_FLAGS = {
     FLAG_OPENED: 1024, // whether the message has ever been opened by the user
     FLAG_RECEIPT_SENT: 2048, // whether a read receipt has been sent in response to the message
     // For drafts only
+    FLAG_RECEIPT: 16384,
     FLAG_RECEIPT_REQUEST: 65536, // whether to request a read receipt for the message
     FLAG_PUBLIC_KEY: 131072, // whether to attach the public key
     FLAG_SIGN: 262144 // whether to sign the message
@@ -345,7 +353,7 @@ export const TIME = {
 export const KNOWLEDGE_BASE = {
     DIGITAL_SIGNATURE: 'https://protonmail.com/support/knowledge-base/digital-signature/',
     PGP_MIME_INLINE: 'https://protonmail.com/support/knowledge-base/pgp-mime-pgp-inline/',
-    STORAGE_WARNING: 'https://protonmail.com/support/knowledge-base/storage-limit-reached/'
+    STORAGE_WARNING: 'https://protonmail.com/support/knowledge-base/increase-my-storage-space/'
 };
 export const PM_SIGNATURE = 'Sent with <a href="https://protonmail.com" target="_blank">ProtonMail</a> Secure Email.';
 
@@ -429,6 +437,8 @@ export const REGEX_EMAIL = /(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)
 // REGEX_URL from http://urlregex.com
 export const REGEX_URL = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/;
 
+export const REGEX_IMAGE_EXTENSION = /\.(gif|jpe?g|tiff|png)$/i;
+
 export const STORAGE_WARNING = {
     KEY: 'storage_warning',
     VALUE: 'seen',
@@ -436,31 +446,48 @@ export const STORAGE_WARNING = {
     REACHED_LIMIT: 99.99
 };
 
+export const PROTON_DOMAINS = [
+    'protonmail.com',
+    'protonmail.ch',
+    'protonvpn.com',
+    'protonstatus.com',
+    'gdpr.eu',
+    'protonvpn.net',
+    'pm.me',
+    'protonirockerxow.onion'
+];
+
 export const VERSION_INFO = {
     INTERVAL: 30 * TIME.MINUTE
 };
 
 export const SIGNUP_PLANS = ['plus', 'visionary', 'plus_vpnplus'];
 
-const BLACK_FRIDAY_YEAR = 2018;
+export const BLACK_FRIDAY_YEAR = 2020;
 
 export const BUNDLE_COUPON_CODE = 'BUNDLE';
+export const BLACK_FRIDAY_2018 = 'TWO4ONE2018';
+export const BLACK_FRIDAY_2019 = 'BF2019';
 
 export const BLACK_FRIDAY = {
+    PLANS: ['plus', 'plus_vpnplus'],
     YEAR: BLACK_FRIDAY_YEAR,
-    COUPON_CODE: 'TWO4ONE2018',
+    COUPON_CODE: 'BF2020',
     CYCLE: CYCLE.TWO_YEARS,
+    CYCLES: [CYCLE.TWO_YEARS, CYCLE.YEARLY],
     BETWEEN: {
-        START: `${BLACK_FRIDAY_YEAR}-11-23`,
-        END: `${BLACK_FRIDAY_YEAR}-11-26`
+        START: new Date(Date.UTC(BLACK_FRIDAY_YEAR, 10, 16, 6)),
+        CYBER_START: new Date(Date.UTC(BLACK_FRIDAY_YEAR, 10, 30, 6)),
+        CYBER_END: new Date(Date.UTC(BLACK_FRIDAY_YEAR, 11, 1, 6)),
+        END: new Date(Date.UTC(BLACK_FRIDAY_YEAR, 11, 15, 6))
     },
     INTERVAL: 10 * 60 * 1000
 };
 
-export const CYBER_MONDAY = {
+export const PRODUCT_PAYER = {
     BETWEEN: {
-        START: `${BLACK_FRIDAY_YEAR}-11-26`,
-        END: `${BLACK_FRIDAY_YEAR}-12-01`
+        START: new Date(Date.UTC(BLACK_FRIDAY_YEAR, 9, 28, 6)),
+        END: new Date(Date.UTC(BLACK_FRIDAY_YEAR, 11, 15, 6))
     }
 };
 
@@ -516,6 +543,22 @@ export const LABEL_COLORS = [
     '#e6984c',
     '#dfb286'
 ];
+
+export const PAYMENT_TOKEN_STATUS = {
+    STATUS_PENDING: 0,
+    STATUS_CHARGEABLE: 1,
+    STATUS_FAILED: 2,
+    STATUS_CONSUMED: 3,
+    STATUS_NOT_SUPPORTED: 4
+};
+
+export const ACCOUNT_DELETION_REASONS = {
+    DIFFERENT_ACCOUNT: 'DIFFERENT_ACCOUNT',
+    TOO_EXPENSIVE: 'TOO_EXPENSIVE',
+    MISSING_FEATURE: 'MISSING_FEATURE',
+    USE_OTHER_SERVICE: 'USE_OTHER_SERVICE',
+    OTHER: 'OTHER'
+};
 
 export const SRP_MODULUS_KEY = `
 -----BEGIN PGP PUBLIC KEY BLOCK-----

@@ -1,46 +1,91 @@
 <div class="blackFriday-container">
-    <header class="blackFriday-header">
-        <span class="blackFriday-header-info">{{ state.header }}</span>
-        <black-friday-countdown data-end="{{::state.end}}"></black-friday-countdown>
+    <header class="blackFriday-header" ng-if="::!state.isProductPayer">
+        <h1 translate-context="blackfriday Title" translate ng-if="state.isCyberMonday">Cyber Monday Sale</h1>
+        <h1 translate-context="blackfriday Title" translate ng-if="!state.isCyberMonday">Black Friday Sale</h1>
+        <black-friday-countdown></black-friday-countdown>
+    </header>
+    <header class="blackFriday-header blackFriday-header--productPayer" ng-if="::state.isProductPayer">
+        <h1 translate-context="blackfriday Title" translate>ProtonDrive early access offer</h1>
+        <p translate-context="blackfriday Info for product payer modal" translate>Get early access to our new encrypted drive for FREE by upgrading to a Plus bundle now.</p>
     </header>
 
     <div class="blackFriday-content">
-        <span class="blackFridayIntro">{{ state.intro }}</span>
-
-        <div class="blackFridayOffers-container">
-            <div class="blackFridayOffer-container" ng-repeat="offer in offers track by $id(offer)">
-
-                <div class="blackFridayOffer-header" data-percentage="{{ ::offer.percentage }}">{{ ::offer.header }}</div>
+        <div class="blackFridayOffers-container" data-offer-n="{{offers.length}}">
+            <div class="blackFridayOffer-container" ng-repeat="offer in offers track by $id(offer)" ng-class="{ 'blackFridayOffer-container--most-popular' : offer.mostPopular }">
+                <div
+                    class="blackFridayOffer-header-mostpopular"
+                    ng-if="::offer.mostPopular">
+                    <span translate-context="blackfriday Badge on Black Friday plan" translate>Most popular</span>
+                    <div class="bf-bubble-percent">
+                        <div class="bf-bubble-percentTxt">
+                            <span translate-context="blackfriday Save X%" translate>Save</span>
+                            {{ ::offer.percentage }}%
+                        </div>
+                    </div>
+                </div>
+                <div class="blackFridayOffer-header">
+                    <div class="bf-bubble-percent" ng-class="{ 'hidden': offer.mostPopular }">
+                        <div class="bf-bubble-percentTxt">
+                            <span translate-context="blackfriday Save X%" translate>Save</span>
+                            {{ ::offer.percentage }}%
+                        </div>
+                    </div>
+                    <div class="be-headerOffer-titles">
+                        <h5>{{ ::offer.header.title }}</h5>
+                        <span>{{ ::offer.header.type }}</span>
+                    </div>
+                </div>
 
                 <div class="blackFridayOffer-content">
-                    <div class="blackFridayOffer-plans">
-                        <span class="blackFridayOffer-plans-title" ng-repeat="name in ::offer.plans">
-                            {{ ::name }}
-                        </span>
-                    </div>
+                    <div class="blackFridayOffer-content-main">
+                        <div class="blackFridayOffer-price-container">
+                            <div class="blackFridayOffer-price-info" ng-bind-html="getPrice(offer)"></div>
+                            <div class="blackFridayOffer-price-billing">
+                                {{ ::offer.billing }}
+                            </div>
+                        </div>
 
-                    <div class="blackFridayOffer-price-container">
-                        <div class="blackFridayOffer-price-info">
-                            {{ ::offer.discountedPrice }}<span class="blackFridayOffer-price-month">{{ ::state.perMonth }}</span>
+                        <div class="blackFridayOffer-services" ng-if="::offer.driveIncluded">
+                            <label
+                                for="services-list"
+                                class="blackFridayOffer-services-label"
+                                translate-context="blackfriday Label"
+                                translate
+                                >Includes</label
+                            >
+                            <ul id="services-list" class="blackFridayOffer-services">
+                                <li class="blackFridayOffer-services-protonDrive" ng-class="{ 'blackFridayOffer-services-protonDrive--productPayer' : state.isProductPayer }">
+                                    <span translate-context="blackfriday Info" translate>
+                                        early access to <span class="blackFridayOffer-services-protonDrive-productName">ProtonDrive</span>
+                                    </span>
+                                    <a class="blackFridayOffer-services-info" href="https://protonmail.com/support/knowledge-base/protondrive-early-access/?utm_campaign=ww-en-2c-mail-coms_inapp-protondrive_learn_more&utm_source=web&utm_medium=app_ad&utm_content=tooltip_v3" target="_blank">
+                                        <i class="fa fa-info-circle text-purple"></i>
+                                    </a>
+                                    <span class="blackFridayOffer-services-protonDrive-free" translate-context="blackfriday Info" translate>FREE</span>
+                                </li>
+                            </ul>
+                            <ul id="services-list" class="blackFridayOffer-services" ng-if="::!offer.driveIncluded">
+                                <li>ProtonMail Plus</li>
+                            </ul>
                         </div>
-                        <div class="blackFridayOffer-price-regular">
-                            {{ ::offer.regularPrice }}<span>{{ ::state.perMonth }}</span>
-                        </div>
-                        <div class="blackFridayOffer-price-savings">
-                            {{ ::offer.savings }}
-                        </div>
-                        <div class="blackFridayOffer-price-billing">
-                            {{ ::offer.billing }}
-                        </div>
+
                     </div>
 
                     <button
                         type="button"
                         ng-disabled="state.loading"
-                        class="pm_button primary blackFridayOffer-buy"
+                        class="pm_button blackFridayOffer-buy"
+                        ng-class="{ 'primary' : offer.mostPopular || state.isProductPayer, 'secondary' : !offer.mostPopular && !state.isProductPayer }"
                         data-buy-offer="{{ $index }}"
-                    >{{ ::state.buy }}
+                    >
+                        {{ ::state.buy }}
                     </button>
+
+                    <div class="bf-billedas">{{::offer.billingTxt}} <sup>{{$index+1}}</sup></div>
+                    <div class="blackFridayOffer-price-regular">
+                        <span translate-context="blackfriday Price offer" translate>Standard price</span>:
+                        <strike>{{ ::offer.price.totalRegular }}</strike>
+                    </div>
                 </div>
             </div>
         </div>
@@ -49,15 +94,24 @@
     </div>
 
     <footer class="blackFriday-footer">
-        <currency-selector
-            data-currency="{{::state.currency}}"
-            data-name="blackFridayCurrency"
-        ></currency-selector>
+        <currency-selector data-currency="{{::state.currency}}" data-name="blackFridayCurrency"></currency-selector>
 
-        <div class="blackFridayAfter-container">
-            <span class="blackFridayAfter-item" ng-repeat="offer in offers track by $id(offer)">
-                {{ ::offer.afterBilling }}
-            </span>
+        <div class="blackFridayAfter-container" ng-if="::!state.isProductPayer">
+            <p ng-repeat="offer in offers track by $id(offer)">
+                ({{$index+1}}) {{ ::offer.afterBilling }}
+            </p>
+
+            <p translate-context="blackfriday Footer in Black Friday modal" translate>
+                Discounts are based on monthly pricing.
+            </p>
+            <p translate-context="blackfriday Footer in Black Friday modal" translate>
+                Offer valid only for first-time paid subscriptions.
+            </p>
+        </div>
+        <div class="blackFridayAfter-container" ng-if="::state.isProductPayer">
+            <p>
+                (1) <span translate-context="blackfriday Footer in Black Friday modal" translate>This subscription will automatically renew every 2 years at the same rate until it is cancelled.</span>
+            </p>
         </div>
     </footer>
 </div>

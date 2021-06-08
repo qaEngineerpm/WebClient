@@ -12,9 +12,11 @@ function actionDnd(
     gettextCatalog,
     notification,
     ptDndNotification,
-    mailSettingsModel
+    mailSettingsModel,
+    moveContactGroupHandler,
+    translator
 ) {
-    const NOTIFS = {
+    const I18N = translator(() => ({
         APPLY_LABEL: gettextCatalog.getString('Apply label', null, 'notification drag and drop'),
         star(total, type) {
             const message = gettextCatalog.getPlural(total, 'message', 'messages', {}, 'Type of item');
@@ -28,7 +30,7 @@ function actionDnd(
                 'notification drag and drop'
             );
         }
-    };
+    }));
 
     const { dispatcher, on } = dispatchers(['elements', 'messageActions']);
 
@@ -60,14 +62,20 @@ function actionDnd(
             dispatcher.messageActions('label', { messages: list, labels });
         }
 
-        notification.success(`${NOTIFS.APPLY_LABEL} ${label.Name}`);
+        notification.success(`${I18N.APPLY_LABEL} ${label.Name}`);
+    };
+
+    const group = (list, type, ID) => {
+        const manager = moveContactGroupHandler.manage('addToContact', 'contact');
+        // We only need the ID, and Selected to filter labels
+        manager([{ ID, Selected: true }], list);
     };
 
     const star = (list = [], type) => {
         list.forEach((model) => {
             dispatcher.elements('toggleStar', { model, type });
         });
-        notification.success(NOTIFS.star(list.length, type));
+        notification.success(I18N.star(list.length, type));
     };
 
     let selectedList;
@@ -86,6 +94,10 @@ function actionDnd(
 
             if (data.type === 'label') {
                 return label(list, type, data.value);
+            }
+
+            if (data.type === 'group') {
+                return group(list, type, data.value);
             }
 
             if (data.value === 'starred') {

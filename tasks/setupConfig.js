@@ -13,7 +13,11 @@ portfinder.basePort = 8080;
 
 const env = require('../env/config');
 const PATH_CONFIG = path.resolve('./src/app/config.js');
-const { CONFIG } = env.getConfig();
+const CONFIG = env.getConfig();
+
+if (env.argv['print-config']) {
+    return console.log(`${JSON.stringify(CONFIG, null, 2)}`);
+}
 
 fs.writeFileSync(PATH_CONFIG, `export default ${JSON.stringify(CONFIG, null, 4)};`);
 /**
@@ -32,11 +36,7 @@ const generator = (() => {
         execa.shell(`tasks/generateChangelog.js ./CHANGELOG.md ${fileNameChangelog}`);
     };
 
-    const version = () => {
-        execa.shell(`tasks/generateVersionInfo.js ${CONFIG.app_version} ${CONFIG.commit} ${fileNameVersionInfo}`);
-    };
-
-    return { changelog, version };
+    return { changelog };
 })();
 
 // Debug mode npm start
@@ -48,8 +48,6 @@ if (process.env.NODE_ENV !== 'dist' && env.argv.debug) {
 }
 
 if (process.env.NODE_ENV !== 'dist' && process.env.NODE_ENV_MODE !== 'config') {
-    generator.version();
-
     if (!env.hasEnv() && !env.isWebClient()) {
         console.log();
         console.log(dedent`

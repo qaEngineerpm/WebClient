@@ -12,10 +12,13 @@ function SecurityController(
     settingsApi,
     userSettingsModel,
     sharedSecretModal,
-    twoFAIntroModal
+    twoFAIntroModal,
+    translator
 ) {
-    const { on, unsubscribe } = dispatchers(['paginatorScope']);
-    const I18N = {
+
+    const { on, unsubscribe } = dispatchers([]);
+
+    const I18N = translator(() => ({
         twofa: {
             title: gettextCatalog.getString('Disable Two-Factor Authentication', null, 'Title'),
             message: gettextCatalog.getString(
@@ -29,7 +32,7 @@ function SecurityController(
             successOthers: gettextCatalog.getString('Other sessions revoked', null, 'Success'),
             success: gettextCatalog.getString('Session revoked', null, 'Success')
         }
-    };
+    }));
 
     const { TwoFactor } = userSettingsModel.get();
 
@@ -51,8 +54,8 @@ function SecurityController(
         function submit(loginPassword, twoFactorCode) {
             const promise = settingsApi
                 .enableTwoFactor(
-                    { TwoFactorSharedSecret: sharedSecret },
-                    { TwoFactorCode: twoFactorCode, Password: loginPassword }
+                    { TwoFactorCode: twoFactorCode, Password: loginPassword },
+                    { TwoFactorSharedSecret: sharedSecret }
                 )
                 .then((data = {}) => data.TwoFactorRecoveryCodes)
                 .then((codes) => {

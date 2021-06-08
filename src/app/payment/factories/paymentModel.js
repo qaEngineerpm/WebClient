@@ -1,22 +1,19 @@
-import { isInvalidCoupon } from '../../../helpers/paymentHelper';
-
 /* @ngInject */
 function paymentModel(
     eventManager,
     Payment,
-    PaymentCache,
     networkActivityTracker,
     gettextCatalog,
     notification,
-    dispatchers
+    dispatchers,
+    translator
 ) {
     let CACHE = {};
-    const I18N = {
-        COUPON_INVALID: gettextCatalog.getString('Invalid coupon code', null, 'Error'),
-        GIFT_INVALID: gettextCatalog.getString('Invalid gift code', null, 'Error'),
-        COUPON_SUCCESS: gettextCatalog.getString('Coupon code accepted', null, 'Coupon code request'),
-        GIFT_SUCCESS: gettextCatalog.getString('Gift code accepted', null, 'Gift code request')
-    };
+
+    const I18N = translator(() => ({
+        VALID_CODE: gettextCatalog.getString('Code accepted', null, 'Code request'),
+        INVALID_CODE: gettextCatalog.getString('Invalid code', null, 'Error when applying coupon code or gift code')
+    }));
 
     const { on } = dispatchers();
 
@@ -59,30 +56,19 @@ function paymentModel(
         return Payment.subscribe(config).then(({ data = {} } = {}) => data);
     }
 
-    function add(params, thing) {
-        const promise = Payment.valid(params)
-            .then((data) => {
-                if (thing === 'coupon' && isInvalidCoupon(params.CouponCode, data)) {
-                    throw new Error(I18N.COUPON_INVALID);
-                }
+    function add(params) {
+        const promise = Payment.valid(params).then((data) => {
+            const { Codes = [] } = params;
+            const { Code = '' } = data.Coupon || {}; // Coupon can equal null
 
-                if (thing === 'gift' && !data.Gift) {
-                    throw new Error(I18N.GIFT_INVALID);
-                }
+            if (Codes.length && !Codes.includes(Code) && !data.Gift) {
+                throw new Error(I18N.INVALID_CODE);
+            }
 
-                return data;
-            })
-            .then((data) => {
-                if (thing === 'coupon') {
-                    notification.success(I18N.COUPON_SUCCESS);
-                }
+            notification.success(I18N.VALID_CODE);
 
-                if (thing === 'gift') {
-                    notification.success(I18N.GIFT_SUCCESS);
-                }
-
-                return data;
-            });
+            return data;
+        });
 
         networkActivityTracker.track(promise);
 
@@ -98,6 +84,12 @@ function paymentModel(
 
         return promise;
     }
+
+    on('payments', (e, { type }) => {
+        if (/^(donation|topUp)\.request\.success/.test(type)) {
+            loadMethods();
+        }
+    });
 
     on('logout', () => {
         clear();

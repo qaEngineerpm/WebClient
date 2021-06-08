@@ -13,24 +13,21 @@ function manageUser(
     dispatchers,
     gettextCatalog,
     notification,
-    decryptKeys
+    decryptKeys,
+    activateKeys,
+    translator
 ) {
     const { dispatcher, on } = dispatchers(['organizationChange', 'updateUser']);
-    const I18N = {
+    const I18N = translator(() => ({
         REVOKE_ADMIN_RELOAD: gettextCatalog.getString('Your admin privileges have been revoked.', null, 'Info'),
         REVOKE_ADMIN_RELOAD_INFO: gettextCatalog.getString(
             'The app will now be reloaded in a few seconds',
             null,
             'Info'
         )
-    };
+    }));
 
     const CACHE = {};
-    const getPromise = async ({ OrganizationPrivateKey } = {}, password) => {
-        if (OrganizationPrivateKey) {
-            return decryptPrivateKey(OrganizationPrivateKey, password);
-        }
-    };
 
     /**
      * Upgrade addesses for a user based on what's coming from
@@ -140,10 +137,15 @@ function manageUser(
             const mailboxPassword = authentication.getPassword();
             // User can be undefined when we update Addresses, that's why we `authentication.user`
             const isSubUser = authentication.user.subuser;
-            const organizationKey = await getPromise(User, mailboxPassword);
+            const organizationPrivateKey = User.OrganizationPrivateKey || authentication.user.OrganizationPrivateKey;
+            const organizationKey = organizationPrivateKey
+                ? await decryptPrivateKey(organizationPrivateKey, mailboxPassword)
+                : undefined;
+
+            const addresses = addressesModel.get();
             const { dirtyAddresses, keys } = await decryptKeys({
                 user: User,
-                addresses: addressesModel.get(),
+                addresses,
                 organizationKey,
                 mailboxPassword,
                 isSubUser
@@ -161,6 +163,11 @@ function manageUser(
             }
 
             keysModel.storeKeys(keys);
+
+            if (!isSubUser) {
+                await activateKeys(addresses, mailboxPassword);
+            }
+
             mergeUser(User, keys, dirtyAddresses);
         } catch (e) {
             e && $exceptionHandler(e);

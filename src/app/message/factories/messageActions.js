@@ -14,6 +14,7 @@ function messageActions(
     $q,
     tools,
     cache,
+    canUndo,
     contactSpam,
     eventManager,
     messageApi,
@@ -25,7 +26,7 @@ function messageActions(
 ) {
     const { on } = dispatchers();
 
-    const notifySuccess = (message) => notification.success(unicodeTag(message));
+    const notifySuccess = (message, options = {}) => notification.success(unicodeTag(message), options);
 
     const basicFolders = [
         MAILBOX_IDENTIFIERS.inbox,
@@ -86,19 +87,23 @@ function messageActions(
     });
 
     // Message actions
-    function move({ ids, labelID }) {
+    function move({ ids, labelID, undo = true }) {
+        const currentLocation = tools.currentLocation();
         const folders = labelsModel.ids('folders');
         const labels = labelsModel.ids('labels');
         const toTrash = labelID === MAILBOX_IDENTIFIERS.trash;
         const toSpam = labelID === MAILBOX_IDENTIFIERS.spam;
-        const folderIDs =
-            toSpam || toTrash ? basicFolders.concat(folders).concat(labels) : basicFolders.concat(folders);
-        const eventList = flow(
-            map((id) => {
-                const message = cache.getMessageCached(id) || {};
+        const folderIDs = toSpam || toTrash ? basicFolders.concat(folders, labels) : basicFolders.concat(folders);
+        const notifyParameters = {};
+
+        // Generate cache events
+        const { eventList, toSpamList } = _.reduce(
+            ids,
+            (acc, ID) => {
+                const message = cache.getMessageCached(ID) || {};
                 let labelIDs = message.LabelIDs || [];
                 const labelIDsAdded = getLabelIDsMoved(message, labelID);
-                const labelIDsRemoved = labelIDs.filter((labelID) => folderIDs.indexOf(labelID) > -1);
+                const labelIDsRemoved = labelIDs.filter((labelID) => folderIDs.includes(labelID));
 
                 if (Array.isArray(labelIDsRemoved)) {
                     labelIDs = _.difference(labelIDs, labelIDsRemoved);
@@ -110,23 +115,29 @@ function messageActions(
 
                 if (toSpam) {
                     const { Sender = {} } = message;
-                    contactSpam([Sender.Address]);
+                    acc.toSpamList.push(Sender.Address);
                 }
 
-                return {
+                acc.eventList[ID] = {
+                    ID,
                     Action: 3,
-                    ID: id,
                     Message: {
-                        ID: id,
+                        ID,
                         ConversationID: message.ConversationID,
                         Selected: false,
                         LabelIDs: labelIDs,
                         Unread: toTrash ? 0 : message.Unread
                     }
                 };
-            }),
-            reduce((acc, event) => ((acc[event.ID] = event), acc), {})
-        )(ids);
+
+                return acc;
+            },
+            {
+                eventList: Object.create(null),
+                toSpamList: []
+            }
+        );
+
         const events = _.reduce(
             eventList,
             (acc, event) => {
@@ -175,13 +186,21 @@ function messageActions(
             'Action'
         );
 
+        toSpamList.length && contactSpam(_.uniq(toSpamList));
+
+        if (undo && canUndo()) {
+            notifyParameters.undo = () => {
+                move({ ids, labelID: currentLocation, undo: false });
+            };
+        }
+
         if (tools.cacheContext()) {
             cache.events(events);
-            return notifySuccess(notification);
+            return notifySuccess(notification, notifyParameters);
         }
 
         // Send cache events
-        promise.then(() => (cache.events(events), notifySuccess(notification)));
+        promise.then(() => (cache.events(events), notifySuccess(notification, notifyParameters)));
         networkActivityTracker.track(promise);
     }
 
@@ -590,7 +609,15 @@ function messageActions(
 
                 if (conversation) {
                     if (conversation.NumMessages === 1) {
-                        acc.push({ Action: STATUS.DELETE, ID: conversation.ID });
+                        acc.push({
+                            Action: STATUS.DELETE,
+                            ID: conversation.ID,
+                            Conversation: {
+                                ID: conversation.ID,
+                                Labels: conversation.Labels,
+                                NumMessages: 0
+                            }
+                        });
                     }
 
                     if (conversation.NumMessages > 1) {

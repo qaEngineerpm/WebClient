@@ -3,8 +3,8 @@ import _ from 'lodash';
 import { MAILBOX_IDENTIFIERS } from '../../constants';
 
 /* @ngInject */
-function searchModel(addressesModel, gettextCatalog, labelsModel) {
-    const I18N = {
+function searchModel(addressesModel, gettextCatalog, labelsModel, translator) {
+    const I18N = translator(() => ({
         ALL: gettextCatalog.getString('All', null, 'Option for search panel'),
         FOLDER: {
             inbox: gettextCatalog.getString('Inbox', null, 'Option for search panel'),
@@ -18,7 +18,7 @@ function searchModel(addressesModel, gettextCatalog, labelsModel) {
             archive: gettextCatalog.getString('Archive', null, 'Option for search panel'),
             allmail: gettextCatalog.getString('All Mail', null, 'Option for search panel')
         }
-    };
+    }));
     const LIST_LOCATIONS = Object.keys(MAILBOX_IDENTIFIERS).reduce(
         (acc, label) => {
             if (label !== 'search' && label !== 'label') {
@@ -127,7 +127,7 @@ function searchModel(addressesModel, gettextCatalog, labelsModel) {
             from: model.from,
             keyword: model.keyword,
             wildcard: isNaN(wildcard) ? undefined : wildcard,
-            attachments: isNaN(attachments) ? undefined : attachments,
+            attachments: isNaN(attachments) || attachments === 2 ? undefined : attachments,
             address: (model.address || {}).ID,
             label: model.label || getLabel(model.folder),
             ...date

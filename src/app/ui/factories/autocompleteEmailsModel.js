@@ -311,6 +311,26 @@ function autocompleteEmailsModel($injector, dispatchers, userType) {
         };
 
         /**
+         * Sync the cache when we remove an item from the autocomplete.
+         * @param  {Object} item
+         * @return {void}
+         */
+        const hookRemove = (item) => {
+            // If we have a match, remove it from the existing as it's not inside the autocomplete anymore.
+            if (item) {
+                const key = Object.keys(LOCAL_CACHE.mapExisting).find((key) => {
+                    if (!item.ID) {
+                        // Contact group label === Name (<count>)
+                        return key === item.Name || key === item.label;
+                    }
+
+                    return LOCAL_CACHE.mapExisting[key].ID === item.ID;
+                });
+                delete LOCAL_CACHE.mapExisting[key];
+            }
+        };
+
+        /**
          * Remove a contact by its address
          * @param  {String} options.Address
          * @return {Array}
@@ -318,14 +338,16 @@ function autocompleteEmailsModel($injector, dispatchers, userType) {
         const remove = (cbRemove, cbExisting = _.noop) => {
             const item = LOCAL_CACHE.list.find(cbExisting);
             LOCAL_CACHE.list = LOCAL_CACHE.list.filter(cbRemove);
+            hookRemove(item);
+            return LOCAL_CACHE.list;
+        };
 
-            // If we have a match, remove it from the existing as it's not inside the autocomplete anymore.
-            if (item) {
-                const key = Object.keys(LOCAL_CACHE.mapExisting).find((key) => {
-                    return LOCAL_CACHE.mapExisting[key].ID === item.ID;
-                });
-                delete LOCAL_CACHE.mapExisting[key];
-            }
+        /**
+         * Remove the last contact from the list
+         * @return {Array}
+         */
+        const removeLast = () => {
+            hookRemove(LOCAL_CACHE.list.pop());
             return LOCAL_CACHE.list;
         };
 
@@ -368,12 +390,6 @@ function autocompleteEmailsModel($injector, dispatchers, userType) {
                 return email;
             });
         };
-
-        /**
-         * Remove the last contact from the list
-         * @return {Array}
-         */
-        const removeLast = () => (LOCAL_CACHE.list.pop(), LOCAL_CACHE.list);
 
         /**
          * Check if there are contacts inside the collection

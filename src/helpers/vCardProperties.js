@@ -2,6 +2,9 @@ import _ from 'lodash';
 import vCard from 'vcf';
 
 import { orderByPref } from './vcard';
+import { FIELDS } from './vCardFields';
+import { formatImage } from './imageHelper';
+import { toList } from './arrayHelper';
 
 /**
  * Check if a property is empty
@@ -29,8 +32,8 @@ const canPushProp = (property, group) => {
  * @param {Array<vCard.Property>} properties
  * @return {Array}
  */
-export const makeUniq = (properties = []) =>
-    _.uniqBy(properties, (property) => {
+export const makeUniq = (properties = []) => {
+    return _.uniqBy(properties, (property) => {
         const type = property.getType();
         const value = property.valueOf();
 
@@ -38,8 +41,20 @@ export const makeUniq = (properties = []) =>
             return `${type} ${value}`;
         }
 
+        const field = property.getField();
+        /*
+            Type is undefined for categories, so for the unicity we need
+            to compare with the group too as a category can be attached to many
+            emails.
+         */
+        if (field === 'categories') {
+            const { group } = property.getParams() || {};
+            return `${type} ${value} ${group}`;
+        }
+
         return value;
     });
+};
 
 /**
  * Extract specific properties
@@ -55,13 +70,18 @@ export function extract(vcard = new vCard(), fields = [], { group } = {}) {
         if (isEmpty(property)) {
             return acc;
         }
-
         const value = property.valueOf();
 
         if (Array.isArray(value)) {
             orderByPref(value).forEach((prop) => {
                 canPushProp(prop, group) && acc.push(prop);
             });
+            return acc;
+        }
+
+        if (FIELDS.PHOTO.includes(key)) {
+            const prop = new vCard.Property(key, formatImage(value), property.getParams());
+            canPushProp(prop, group) && acc.push(prop);
             return acc;
         }
 
@@ -85,4 +105,28 @@ export function extractAll(vcard = new vCard()) {
         },
         []
     );
+}
+
+/**
+ * Remove specific property on vCard by looking at field and group
+ * @param {vCard} vcard original
+ * @param {String} field
+ * @param {Object} group
+ * @returns {vCard} new vcard
+ */
+export function removeProperty(vcard = new vCard(), field = '', group = '') {
+    return Object.keys(vcard.data).reduce((acc, key) => {
+        toList(vcard.get(key))
+            .filter((property) => {
+                if (property.getField() === field && property.getGroup() === group) {
+                    return false;
+                }
+                return true;
+            })
+            .forEach((property) => {
+                acc.addProperty(property);
+            });
+
+        return acc;
+    }, new vCard());
 }

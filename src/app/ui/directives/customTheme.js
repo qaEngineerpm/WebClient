@@ -1,17 +1,20 @@
 /* @ngInject */
-const customTheme = (AppModel, dispatchers, mailSettingsModel) => ({
+const customTheme = (AppModel, dispatchers, mailSettingsModel, organizationModel) => ({
     replace: true,
     template: '<style id="customTheme"></style>',
     link(scope, el) {
         const { on, unsubscribe } = dispatchers();
         const update = () => {
-            const { isLoggedIn, isLocked } = AppModel.query();
+            const { isLoggedIn } = AppModel.query();
 
-            if (isLoggedIn && !isLocked) {
-                el[0].textContent = mailSettingsModel.get('Theme');
+            if (isLoggedIn) {
+                const { Theme: organizationTheme } = organizationModel.get() || {};
+                const userTheme = mailSettingsModel.get('Theme');
+                el[0].textContent = organizationTheme || userTheme || '';
             }
         };
 
+        on('organizationChange', update);
         on('mailSettings', update);
         on('AppModel', update);
 

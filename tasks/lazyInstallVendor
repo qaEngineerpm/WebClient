@@ -18,19 +18,22 @@ args=("$@")
 function testVendor {
     if [ -d "./node_modules/karma" ]; then
         echo "✓ We have a cache."
+        npm run postinstall
     else
-        npm i karma \
-        karma-cli \
-        karma-webpack \
-        karma-jasmine@1.1.2  \
-        karma-coverage \
-        karma-chrome-launcher \
-        karma-babel-preprocessor@next \
-        karma-coverage-istanbul-reporter \
-        karma-junit-reporter \
-        jasmine-core@2.8 \
-        puppeteer@1.11 \
-        --no-save;
+        npm i karma@^5.2.3 \
+            karma-cli \
+            karma-webpack \
+            karma-jasmine@2  \
+            karma-coverage \
+            karma-chrome-launcher \
+            karma-babel-preprocessor@8 \
+            karma-coverage-istanbul-reporter \
+            karma-junit-reporter \
+            jasmine-core@3.4 \
+            puppeteer@2.1 \
+            --no-save;
+
+        npm run postinstall
     fi
 }
 
@@ -39,7 +42,7 @@ function e2eVendor {
     if [ -d "./node_modules/cypress" ]; then
         echo "✓ We have a cache."
     else
-        npm i cypress@3.0 --no-save --production;
+        npm i cypress@3.3 --no-save --production;
     fi
 }
 

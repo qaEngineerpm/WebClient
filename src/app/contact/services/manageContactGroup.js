@@ -18,11 +18,12 @@ function manageContactGroup(
     emailsEncryptionFlags,
     dispatchers,
     contactEmails,
-    userType
+    userType,
+    translator
 ) {
     const { dispatcher } = dispatchers(['manageContactGroup']);
 
-    const I18N = {
+    const I18N = translator(() => ({
         saveSuccess(type, { label, group }) {
             if (type === 'update') {
                 return gettextCatalog.getString('{{Name}} updated', { Name: label.Name }, 'Info');
@@ -77,7 +78,7 @@ function manageContactGroup(
                 );
             }
         }
-    };
+    }));
 
     /**
      * Parse errors from the response as we have one object/email
@@ -312,6 +313,7 @@ function manageContactGroup(
         if (!noEvent) {
             await eventManager.call();
         }
+
         !isSilent && notification.success(i18n(LabelIDs.length));
         return output;
     };

@@ -1,19 +1,28 @@
-import { BLACK_FRIDAY } from '../../constants';
+import { BLACK_FRIDAY_YEAR } from '../../constants';
 
 /* @ngInject */
-function blackFridayHandler($stateParams, dispatchers) {
-    const STATE = {};
-    const { dispatcher, on } = dispatchers(['blackFriday']);
+function blackFridayHandler(Payment, blackFridayModel, dispatchers) {
+    const OCTOBER_01 = +new Date(`${BLACK_FRIDAY_YEAR}-10-01`) / 1000; // Unix TS
 
-    const init = () => {
-        clearInterval(STATE.intervalHandle);
-        STATE.intervalHandle = setInterval(() => dispatcher.blackFriday('tictac'), BLACK_FRIDAY.INTERVAL);
+    const isAbleToSeeBF = (latest = 0) => {
+        // New user
+        if (latest === null) {
+            return true;
+        }
+
+        // Free from at least > 1 month
+        return latest && latest < OCTOBER_01;
     };
 
-    on('logout', () => {
-        clearInterval(STATE.intervalHandle);
-        delete STATE.intervalHandle;
-    });
+    async function init() {
+        const { dispatcher } = dispatchers(['blackFriday']);
+        const { LastSubscriptionEnd } = await Payment.latestSubscription();
+
+        if (isAbleToSeeBF(LastSubscriptionEnd)) {
+            blackFridayModel.allow();
+            dispatcher.blackFriday('run');
+        }
+    }
 
     return init;
 }

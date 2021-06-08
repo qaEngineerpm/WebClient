@@ -1,19 +1,10 @@
 import { CYCLE } from '../../constants';
-import { isDealEvent } from '../../blackFriday/helpers/blackFridayHelper';
 
 const { MONTHLY, YEARLY, TWO_YEARS } = CYCLE;
 
 /* @ngInject */
-function totalRows(
-    $filter,
-    blackFridayModel,
-    dashboardConfiguration,
-    dashboardModel,
-    dispatchers,
-    gettextCatalog,
-    subscriptionModel
-) {
-    const I18N = {
+function totalRows($filter, dashboardConfiguration, dashboardModel, dispatchers, gettextCatalog, translator) {
+    const I18N = translator(() => ({
         billedAs(amount, cycle) {
             if (cycle === YEARLY) {
                 return gettextCatalog.getString('Billed as {{amount}} /yr', { amount }, 'Info');
@@ -25,12 +16,11 @@ function totalRows(
 
             return '';
         }
-    };
+    }));
 
     const types = ['addon.updated', 'cycle.updated', 'currency.updated', 'vpn.updated'];
     const amount = (plan, cycle, currency, division) =>
         $filter('currency')(dashboardModel.total(plan, cycle) / 100 / division, currency);
-    const HAS_TWO_YEARS_CLASS = 'totalRows-has-2-years';
 
     return {
         restrict: 'E',
@@ -46,12 +36,6 @@ function totalRows(
             const twoYearsBilled = element.find('.totalRows-2-years-billed-price');
 
             scope.onChange = () => dispatcher.dashboard('change.cycle', { cycle: scope.cycle });
-
-            function bindClass() {
-                const action = subscriptionModel.cycle() === TWO_YEARS || isDealEvent() ? 'add' : 'remove';
-
-                element[0].classList[action](HAS_TWO_YEARS_CLASS);
-            }
 
             function update() {
                 scope.$applyAsync(() => {
@@ -72,12 +56,7 @@ function totalRows(
                 types.indexOf(type) > -1 && update();
             });
 
-            on('blackFriday', (event, { type = '' }) => {
-                type === 'tictac' && bindClass();
-            });
-
             update();
-            bindClass();
 
             scope.$on('$destroy', unsubscribe);
         }

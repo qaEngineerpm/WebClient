@@ -1,13 +1,13 @@
 import _ from 'lodash';
 import { decryptPrivateKey, encryptPrivateKey } from 'pmcrypto';
+import { computeKeyPassword, generateKeySalt } from 'pm-srp';
 
-import { BASE_SIZE } from '../../constants';
+import { BASE_SIZE, DEFAULT_ENCRYPTION_CONFIG } from '../../constants';
 
 /* @ngInject */
 function setupOrganizationModal(
     authentication,
     pmModal,
-    passwords,
     networkActivityTracker,
     organizationApi,
     organizationModel,
@@ -21,6 +21,15 @@ function setupOrganizationModal(
         /* @ngInject */
         controller: function(params, $scope) {
             const self = this;
+
+            const I18N = {
+                ERROR_PASSWORD_INPUT: gettextCatalog.getString(
+                    'You must add a password for the organization',
+                    null,
+                    'Error'
+                )
+            };
+
             const base = BASE_SIZE;
             const steps = ['name', 'keys', 'password', 'storage'];
             const methods = [name, keys, password, storage, vpn];
@@ -37,7 +46,8 @@ function setupOrganizationModal(
             }
 
             self.step = steps[index];
-            self.size = 2048;
+            self.encryptionConfigName = DEFAULT_ENCRYPTION_CONFIG;
+            self.size = self.encryptionConfigName;
 
             const allocatedLegend = {
                 label: gettextCatalog.getString('Allocated to admin', null, 'Success'),
@@ -112,20 +122,18 @@ function setupOrganizationModal(
                 });
                 networkActivityTracker.track(promise);
             };
-            self.cancel = () => {
-                params.close();
-            };
+
             function name() {
                 const DisplayName = self.name;
-
                 return organizationApi.updateOrganizationName({ DisplayName });
             }
+
             function keys() {
                 const mailboxPassword = authentication.getPassword();
-                const bitSize = self.size;
+                const encryptionConfigName = self.size || self.encryptionConfigName;
 
                 return setupKeys
-                    .generateOrganization(mailboxPassword, bitSize)
+                    .generateOrganization(mailboxPassword, encryptionConfigName)
                     .then(({ privateKeyArmored }) => {
                         payload.PrivateKey = privateKeyArmored;
                         return privateKeyArmored;
@@ -133,24 +141,30 @@ function setupOrganizationModal(
                     .then((armored) => decryptPrivateKey(armored, mailboxPassword))
                     .then((pkg) => (decryptedKey = pkg));
             }
-            function password() {
+
+            async function password() {
                 const organizationPassword = self.organizationPassword;
 
-                payload.Tokens = [];
-                payload.BackupKeySalt = passwords.generateKeySalt();
+                if (!organizationPassword) {
+                    throw new Error(I18N.ERROR_PASSWORD_INPUT);
+                }
 
-                return passwords
-                    .computeKeyPassword(organizationPassword, payload.BackupKeySalt)
+                payload.Tokens = [];
+                payload.BackupKeySalt = generateKeySalt();
+
+                return computeKeyPassword(organizationPassword, payload.BackupKeySalt)
                     .then((keyPassword) => encryptPrivateKey(decryptedKey, keyPassword))
                     .then((armored) => (payload.BackupPrivateKey = armored))
                     .then(() => organizationApi.updateOrganizationKeys(payload));
             }
+
             function storage() {
                 const memberID = params.memberID;
                 const quota = Math.round(self.sliderValue * self.unit);
 
                 return memberApi.quota(memberID, quota);
             }
+
             function vpn() {
                 const memberID = params.memberID;
                 const vpn = Math.round(self.sliderVPNValue);

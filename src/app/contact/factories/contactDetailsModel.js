@@ -20,14 +20,15 @@ function contactDetailsModel(
     contactSchema,
     gettextCatalog,
     vcard,
+    translator,
     contactEncryptionAddressMap,
     contactEncryptionSaver
 ) {
     const vcardService = vcard;
 
-    const I18N = {
+    const I18N = translator(() => ({
         unknown: gettextCatalog.getString('Unknown', null, 'Default display name vcard')
-    };
+    }));
 
     const buildProperty = (type) => (property = {}) => {
         const key = property.getField();
@@ -90,7 +91,11 @@ function contactDetailsModel(
                         helperCard.addProperty(emailProperty);
 
                         const contactEncryptModel = contactEncryptionAddressMap.get(contactID, email);
-                        const card = contactEncryptionSaver.build(helperCard, email, contactEncryptModel);
+                        const card = contactEncryptionSaver.build(
+                            { vCard: helperCard, ID: contactID },
+                            email,
+                            contactEncryptModel
+                        );
 
                         // Save position to attach group to the new index (ex: post reorder)
                         MAP_EMAIL_POS[vCardArgs.group] = emailProperty.group;
@@ -126,9 +131,15 @@ function contactDetailsModel(
                                 const cfg = getParams(item);
 
                                 // Import the new position if there was a re-order
-                                const group = MAP_EMAIL_POS[cfg.group] || cfg.group;
-                                const opt = { ...cfg, group };
-                                params.vCard.add(item.type, cleanValue(escapeValue(value)), opt);
+                                const group = MAP_EMAIL_POS[cfg.group];
+
+                                // ex: when you delete the only email attached to a group you don't need to keep the group anymore
+                                if (group) {
+                                    params.vCard.add(item.type, cleanValue(escapeValue(value)), {
+                                        ...cfg,
+                                        group
+                                    });
+                                }
                             }
 
                             return;

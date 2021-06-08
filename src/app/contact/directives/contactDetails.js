@@ -17,17 +17,18 @@ function contactDetails(
     notification,
     subscriptionModel,
     memberModel,
-    dispatchers
+    dispatchers,
+    translator
 ) {
     const ENCRYPTED_AND_SIGNED_CLASS = 'contactDetails-encrypted-and-signed';
 
-    const I18N = {
+    const I18N = translator(() => ({
         invalidForm: gettextCatalog.getString(
             'This form is invalid',
             null,
             'Error displays when the user try to leave an unsaved and invalid contact details'
         )
-    };
+    }));
 
     return {
         restrict: 'E',
@@ -119,18 +120,7 @@ function contactDetails(
 
                 if (scope.contact.ID) {
                     contact.ID = scope.contact.ID;
-                    // Close edition mode
-                    const callback = ({ Contact, cards } = {}) => {
-                        dispatcher.contacts('action.input', {
-                            action: 'toggleMode',
-                            from: 'updateContact',
-                            current: scope.mode,
-                            refresh: true,
-                            contact: Contact,
-                            cards
-                        });
-                    };
-                    dispatcher.contacts('updateContact', { contact, callback });
+                    dispatcher.contacts('updateContact', { contact });
                 } else {
                     dispatcher.contacts('createContact', { contacts: [contact], state });
                 }

@@ -20,10 +20,10 @@ function pmModal(
     // The highest z-Index for the last modals used. Used to ensure that modals are sort by time (latest modal on top)
     let zIndex = MODAL_Z_INDEX;
 
-    function manageHotkeys(bind = true) {
-        if (mailSettingsModel.get('Hotkeys')) {
+    function manageHotkeys(status = true) {
+        if (mailSettingsModel.get('Hotkeys') === 1) {
             const hotkeys = $injector.get('hotkeys');
-            hotkeys[bind ? 'bind' : 'unbind']();
+            hotkeys[status ? 'bind' : 'unbind']();
         }
     }
 
@@ -40,6 +40,7 @@ function pmModal(
         let scope;
         const { dispatcher, on, unsubscribe } = dispatchers(['tooltip']);
         const closeAllTooltips = () => dispatcher.tooltip('hideAll');
+        const hotkeys = $injector.get('hotkeys');
 
         if (config.template) {
             html = $q.when(config.template);
@@ -63,23 +64,28 @@ function pmModal(
 
                 $body.append('<div class="modal-backdrop fade in"></div>');
                 AppModel.set('modalOpen', true);
+
                 const id = setTimeout(() => {
                     $('.modal').addClass('in');
                     window.scrollTo(0, 0);
                     manageHotkeys(false); // Disable hotkeys
-                    Mousetrap.bind('escape', () => {
-                        const { onEscape = deactivate } = (locals || {}).params || {};
-                        onEscape();
-                    });
+                    hotkeys.bind(['escape']);
                     clearTimeout(id);
                 }, 100);
 
+                on('hotkeys', (e, { type }) => {
+                    if (type === 'escape') {
+                        const { onEscape = deactivate } = (locals || {}).params || {};
+                        onEscape('close', 'escape');
+                    }
+                });
+
                 on('logout', () => {
-                    deactivate();
+                    deactivate('close', 'logout');
                 });
 
                 on('$stateChangeSuccess', () => {
-                    deactivate();
+                    deactivate('close', '$stateChangeSuccess');
                 });
             });
         }
@@ -115,7 +121,19 @@ function pmModal(
                 const ctrl = $controller(controller, locals);
                 !ctrl.cancel && (ctrl.cancel = locals.params.cancel);
                 !ctrl.close && (ctrl.close = locals.params.close);
-                ctrl.$hookClose = (mode) => {
+
+                /**
+                 * Hook triggered when we close the modal
+                 *     - the mode is always close when it comes to deactivate not made my us
+                 *     - the info is the scope of the mode, ex a close from logout/stateChange,hotkeys...
+                 * If you don't pass a mode, ex on a custom submit action (most common use-case)
+                 * it means a click onto the main action button of a modal.
+                 *
+                 * @param  {String} mode Type of action for this deactivate
+                 * @param  {String} details scope of the mode (logout, etc.)
+                 * @return {void}
+                 */
+                ctrl.$hookClose = (mode, info) => {
                     // show the previousModal if we have one
                     if (locals.params.previousModal) {
                         const id = setTimeout(() => {
@@ -123,7 +141,7 @@ function pmModal(
                             clearTimeout(id);
                         }, 300);
                     }
-                    (locals.params.hookClose || _.noop)(mode);
+                    (locals.params.hookClose || _.noop)(mode, info);
                 };
 
                 if (controllerAs) {
@@ -139,7 +157,7 @@ function pmModal(
             return $animate.enter(element, container);
         }
 
-        function deactivate(mode) {
+        function deactivate(mode, details) {
             if (!element) {
                 return $q.when();
             }
@@ -154,7 +172,8 @@ function pmModal(
                 if (!element) {
                     return;
                 }
-                Mousetrap.unbind('escape');
+
+                hotkeys.unbind(['escape']);
                 manageHotkeys(); // Enable hotkeys
                 scope && scope.$destroy();
                 /**
@@ -167,7 +186,7 @@ function pmModal(
                  * cf https://github.com/angular/angular.js/issues/14376#issuecomment-205926098
                  */
                 (scope[controllerAs].$onDestroy || angular.noop)();
-                scope[controllerAs].$hookClose(mode);
+                scope[controllerAs].$hookClose(mode, details);
                 scope = null;
                 element.remove();
                 element = null;

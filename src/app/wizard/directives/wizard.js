@@ -27,11 +27,15 @@ function wizard(dispatchers, $stateParams, $timeout, $state, welcomeModal, wizar
             };
 
             // Initialization
-            $timeout(() => {
-                if ($stateParams.welcome) {
-                    welcome();
-                }
-            }, 0);
+            $timeout(
+                () => {
+                    if ($stateParams.welcome) {
+                        welcome();
+                    }
+                },
+                0,
+                false
+            );
 
             /**
              * Listen to the differents actions
@@ -53,7 +57,10 @@ function wizard(dispatchers, $stateParams, $timeout, $state, welcomeModal, wizar
                 }
             });
 
-            scope.$on('$destroy', unsubscribe);
+            scope.$on('$destroy', () => {
+                unsubscribe();
+                tourEnd();
+            });
 
             /**
              * Action with left and right arrows

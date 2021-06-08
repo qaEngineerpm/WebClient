@@ -92,13 +92,14 @@
                                         }"></i> SPF
                                     </button>
                                     <button type="button" class="progress pm_button" ng-disabled="domain.State === 0" ng-click="dkim(domain)" ng-class="{
-                                        'success': domain.DkimState === 4 || domain.DkimState === 5,
-                                        'error': domain.DkimState === 3 || domain.DkimState === 2 || domain.DkimState === 1
+                                        'success': domain.DKIM.State === 4,
+                                        'error': domain.DKIM.State === 3,
+                                        'warning': domain.DKIM.State === 6
                                     }">
-                                        <i class="fa" ng-hide="(domain.DkimState === 0)" ng-class="{
-                                            'fa-check': (domain.DkimState === 4),
-                                            'fa-warning': (domain.DkimState === 1 || domain.DkimState === 2 || domain.DkimState === 3),
-                                            'fa-minus-circle': (domain.DkimState === 5)
+                                        <i class="fa" ng-hide="(domain.DKIM.State === 0)" ng-class="{
+                                            'fa-check': (domain.DKIM.State === 4),
+                                            'fa-warning': (domain.DKIM.State === 6),
+                                            'fa-minus-circle': (domain.DKIM.State === 3)
                                         }"></i> DKIM
                                     </button>
                                     <button type="button" class="progress pm_button" ng-click="dmarc(domain)" ng-disabled="domain.State === 0" ng-class="{
@@ -134,7 +135,18 @@
                             </tr>
                             <tr ng-if="domain.State === 0">
                                 <td colspan="2">
-                                    <p class="alert alert-warning">Setup Error: Please run the <a class="pm_button link" href="#" ng-click="wizard(domain)"><i class="fa fa-magic"></i> Setup Wizard</a> to correct configuration errors.</p>
+                                    <p class="alert alert-warning">
+                                        <span
+                                            translate-comment="Setup Error: Please run the [setup wizard] to correct configuration errors"
+                                            translate-context="domains list"
+                                            translate>Setup Error: Please run the</span>
+                                        <a class="pm_button link" href="#" ng-click="wizard(domain)">
+                                            <i class="fa fa-magic"></i> <span translate translate-context="Action">Setup Wizard</span></a>
+                                        <span
+                                            translate-comment="Setup Error: Please run the [setup wizard] to correct configuration errors"
+                                            translate-context="domains list"
+                                            translate>to correct configuration errors.</span>
+                                    </p>
                                 </td>
                                 <td></td>
                             </tr>

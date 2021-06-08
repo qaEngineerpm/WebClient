@@ -8,7 +8,13 @@ Official AngularJS web client for the [ProtonMail secure email service](https://
 
 [![Crowdin](https://d322cqt584bo4o.cloudfront.net/protonmail/localized.svg)](https://crowdin.com/project/protonmail)
 
-We are currently working with our community to localize ProtonMail from English to most of the world's major languages. If you're interested in being part of this translation project, send us an email to contact@protonmail.ch with the subject line "ProtonMail Translation Project [Your Language]" and we will offer you more information about it.
+We are currently working with our community to localize ProtonMail from English to most of the world's major languages. If you're interested in being part of this translation project, send us an email to contact@protonmail.com with the subject line "ProtonMail Translation Project [Your Language]" and we will offer you more information about it.
+
+
+
+>**⚠ If you use Windows plz follow this document before anything else [how to prepare Windows](https://github.com/ProtonMail/proton-shared/wiki/setup-windows)**
+
+
 
 ## Basic Installation
 
@@ -18,7 +24,7 @@ We are currently working with our community to localize ProtonMail from English 
 > To run the app without babel `npm run start:raw`
 
 ### dependencies
-  - Node.js >= v8
+  - Node.js >= v12 (LTS)
   - npm 6
   - git
 
@@ -96,6 +102,7 @@ Each `deploy-<NAME>` will be available at `<NAME>.protonmail.com`.
 - `--branch` : Deploy branch dest
 - `--api` : Set an API for the app (_dev, live, etc._)
 - `--debug`: turn on debug mode for the command (default false)
+- `--i18n`: Force sync translations (default false)
 
 ## I18n à la demande
 
@@ -105,17 +112,41 @@ Each `deploy-<NAME>` will be available at `<NAME>.protonmail.com`.
 npm run i18n:extract
 ```
 
-> We build i18n when we create a build for beta or prod
-
-```sh
-npm run i18n:build
-```
-
-It will do everything you need. Import new translations first for a better result ;)
-
 ## Release notes
 
+### Generate the file CHANGELOG.md
+
+The command is going to generate a new entry inside the file `./CHANGELOG.md`. It works with [semver](https://semver.org/). You set which kind of entry you want (_patch_, _minor_ or _major_) and it's going to add it inside the file.
+
+```sh
+npm run releaser:unshift <patch|minor|major>
+```
+
+> :information_source:  It won't create a new version/git tag
+
+
+ex: today version 3.16.5
+```md
+# [3.16.5] - 2019-10-01
+
+[...]
+``` 
+
+`$ npm run releaser:unshift minor`
+
+Output:
+```md
+# [3.17.0] - 2019-10-01
+
+[...]
+
+# [3.16.5] - 2019-10-01
+
+[...]
+``` 
+
 ### Extract markdown
+
 *NOTE: In order to generate the release notes you need to set the `RELEASER_GH_TOKEN` environment variable.*
 
 To generate release notes for the latest version (tag), run the following command:
@@ -185,10 +216,29 @@ npm run e2e
 
 ## License
 
-Copyright (c) 2013-2019
+Copyright (c) 2013-2020
 
 Proton Technologies A.G. (Switzerland)
 
-Email: contact@protonmail.ch
+Email: contact@protonmail.com
 
 License: https://github.com/ProtonMail/WebClient/blob/public/LICENSE
+
+## :rocket: Create a new version (before deploy)
+
+This command will:
+
+- Manage dependencies (detect and update the lock)
+- Take care of active npm links
+- run npm version
+
+```sh
+$ npx proton-version <patch|minor|major>
+```
+> Default is patch
+
+If you want to force the update of all dependencies add the flag `--all`;
+
+By default it provides a prompt and ask you what you want to update etc.
+
+> If you have an active `npm link` it will remove it from your node_modules.

@@ -1,9 +1,19 @@
 import _ from 'lodash';
 
 import { INVITE_URL, PRODUCT_TYPE } from '../../constants';
+import { handlePaymentToken } from '../../payment/helpers/paymentToken';
 
 /* @ngInject */
-function signupModel(User, $state, $stateParams, $location, dispatchers, Payment, networkActivityTracker) {
+function signupModel(
+    User,
+    $state,
+    $stateParams,
+    $location,
+    dispatchers,
+    Payment,
+    networkActivityTracker,
+    paymentVerificationModal
+) {
     const CACHE = {};
     const { dispatcher } = dispatchers(['signup']);
     const dispatch = (type, data = {}) => dispatcher.signup(type, data);
@@ -79,7 +89,8 @@ function signupModel(User, $state, $stateParams, $location, dispatchers, Payment
             Username: get('username'),
             Email: get('notificationEmail'),
             Type: PRODUCT_TYPE.MAIL,
-            Referrer: $location.search().ref
+            Referrer: $location.search().ref,
+            Payload: get('payload')
         };
 
         if ($stateParams.inviteToken) {
@@ -108,17 +119,24 @@ function signupModel(User, $state, $stateParams, $location, dispatchers, Payment
 
          */
     function verify(options) {
-        const promise = Payment.verify({ ...options, Username: get('username') })
-            .then(({ VerifyCode }) => {
-                set('VerifyCode', VerifyCode);
-                set('temp.method', options.Payment);
+        const promise = handlePaymentToken({ params: options, paymentApi: Payment, paymentVerificationModal })
+            .then((parameters) => {
+                return Payment.verify({ ...parameters, Username: get('username') }).then(({ VerifyCode }) => {
+                    set('VerifyCode', VerifyCode);
+
+                    if (['card', 'paypal', 'token'].includes(options.Payment.Type)) {
+                        set('temp.method', parameters.Payment);
+                    }
+                });
             })
-            .catch(({ data = {} } = {}) => {
+            .catch((error = {}) => {
+                const { data = {} } = error;
                 // We were unable to successfully charge your card. Please try a different card or contact your bank for assistance.
                 if (data.Error) {
                     dispatch('payment.verify.error', { error: data.Error });
                     throw new Error(data.Error);
                 }
+                throw error;
             });
 
         networkActivityTracker.track(promise);

@@ -1,10 +1,9 @@
 import _ from 'lodash';
-
 import { flow, filter, each } from 'lodash/fp';
 
 /* @ngInject */
-function hotkeys(hotkeyModal, $state, $injector, dispatchers, gettextCatalog) {
-    const I18N = {
+function hotkeys($state, $injector, dispatchers, gettextCatalog, translator) {
+    const I18N = translator(() => ({
         OPEN_COMPOSER: gettextCatalog.getString('Open the composer', null, 'Hotkey description'),
         CREATE_REPLY: gettextCatalog.getString('Create a reply', null, 'Hotkey description'),
         CREATE_REPLY_ALL: gettextCatalog.getString('Create a reply all', null, 'Hotkey description'),
@@ -25,7 +24,7 @@ function hotkeys(hotkeyModal, $state, $injector, dispatchers, gettextCatalog) {
         GO_TO_TRASH: gettextCatalog.getString('Go to trash', null, 'Hotkey description'),
         SELECT_ALL: gettextCatalog.getString('Select all elements', null, 'Hotkey description'),
         UNSELECT_ALL: gettextCatalog.getString('Unselect all elements', null, 'Hotkey description')
-    };
+    }));
 
     const KEY_EVENT_TYPE = {
         PRESS: 'keypress',
@@ -54,6 +53,7 @@ function hotkeys(hotkeyModal, $state, $injector, dispatchers, gettextCatalog) {
         'oldElement'
     ]);
 
+    const mousetrapInstance = new Mousetrap();
     const action = (cb) => () => (cb(), false);
     const redirect = (state) => () => $state.go(state);
     const emit = (action, { type, data = {} } = {}) => () => {
@@ -73,6 +73,8 @@ function hotkeys(hotkeyModal, $state, $injector, dispatchers, gettextCatalog) {
     };
 
     const help = () => {
+        const hotkeyModal = $injector.get('hotkeyModal');
+
         hotkeyModal.activate({
             params: {
                 close() {
@@ -253,13 +255,13 @@ function hotkeys(hotkeyModal, $state, $injector, dispatchers, gettextCatalog) {
         { keyboard: '/', callback: slash }
     ];
 
-    const removeBinding = ({ keyboard, keyEventType }) => Mousetrap.unbind(keyboard, keyEventType);
+    const removeBinding = ({ keyboard, keyEventType }) => mousetrapInstance.unbind(keyboard, keyEventType);
     const addBinding = ({ keyboard, callback, keyEventType, global = false }) => {
         if (global) {
             // 'keyup' will not work with command+s
-            return Mousetrap.bindGlobal(keyboard, callback, keyEventType);
+            return mousetrapInstance.bindGlobal(keyboard, callback, keyEventType);
         }
-        Mousetrap.bind(keyboard, callback, keyEventType);
+        mousetrapInstance.bind(keyboard, callback, keyEventType);
     };
 
     /**
@@ -276,32 +278,45 @@ function hotkeys(hotkeyModal, $state, $injector, dispatchers, gettextCatalog) {
     };
 
     const hotkeys = {
-        trigger: Mousetrap.trigger,
+        initialized: false,
+        init(status = false) {
+            // Don't unbind if we didn't bind before
+            if (!this.initialized) {
+                status && this.bind(); // Don't unbind if it's not required
+                this.initialized = true;
+                return;
+            }
+
+            this[status ? 'bind' : 'unbind']();
+        },
         bind(list = []) {
             if (!list.length) {
-                return keys.forEach(addBinding);
+                return [...keys].forEach(addBinding);
             }
 
             filterBinding(list, addBinding);
         },
         unbind(list = []) {
             if (!list.length) {
-                return keys.forEach(removeBinding);
+                return [...keys].forEach(removeBinding);
             }
 
             filterBinding(list, removeBinding);
         },
+        trigger(...arg) {
+            return mousetrapInstance.trigger(...arg);
+        },
         reset() {
-            Mousetrap.reset();
+            return mousetrapInstance.reset();
         },
         pause() {
-            Mousetrap.pause();
+            return mousetrapInstance.pause();
         },
         unpause() {
-            Mousetrap.unpause();
+            return mousetrapInstance.unpause();
         },
         keys() {
-            return angular.copy(keys);
+            return [...keys];
         },
         translations(key) {
             return I18N[key] || I18N;

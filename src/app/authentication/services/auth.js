@@ -1,313 +1,169 @@
-import _ from 'lodash';
-import { checkMailboxPassword, decodeBase64, decodeUtf8Base64, decryptPrivateKey, encodeUtf8Base64 } from 'pmcrypto';
-
-import CONFIG from '../../config';
-import { OAUTH_KEY, MAILBOX_PASSWORD_KEY } from '../../constants';
+import { decryptPrivateKey } from 'pmcrypto';
+import loginWithFallback from 'proton-shared/lib/authentication/loginWithFallback';
+import { getAuthHeaders } from './authApi';
+import { destroyOpenpgp, loadOpenpgp } from '../../loadOpenpgp';
 
 /* @ngInject */
 function authentication(
     $http,
-    $log,
-    $q,
     $state,
     $injector,
-    $exceptionHandler,
     authApi,
+    loggedOutSessions,
     checkKeysFormat,
     keysModel,
-    upgradePassword,
     networkActivityTracker,
     dispatchers,
+    authenticationStore,
     secureSessionStorage,
     User,
-    passwords,
-    srp,
+    compatApi,
     AppModel,
     tempStorage,
     upgradeKeys,
-    decryptKeys
+    decryptKeys,
+    activateKeys
 ) {
     const { dispatcher } = dispatchers(['setUser']);
-    const auth = {
-        headersSet: false,
-        // The Authorization header is used just once for the /cookies route, then we forget it and use cookies instead.
-        setAuthHeaders() {
-            this.headersSet = true;
-            $http.defaults.headers.common['x-pm-uid'] = auth.data.UID;
-            if (auth.data.AccessToken) {
-                $http.defaults.headers.common.Authorization = 'Bearer ' + auth.data.AccessToken;
-            } else {
-                $http.defaults.headers.common.Authorization = undefined;
+
+    const getUserInfo = async (userResult) => {
+        const user = userResult || (await User.get());
+
+        // Redirect to setup if necessary
+        if (user.Keys.length === 0) {
+            $state.go('login.setup');
+            return user;
+        }
+
+        const { OrganizationPrivateKey } = user;
+
+        user.subuser = !!OrganizationPrivateKey;
+
+        if (!user.DisplayName) {
+            user.DisplayName = user.Name;
+        }
+
+        const mailboxPassword = api.getPassword();
+
+        const [addresses, organizationKey] = await Promise.all([
+            $injector.get('addressesModel').fetch(user),
+            OrganizationPrivateKey ? decryptPrivateKey(OrganizationPrivateKey, mailboxPassword) : undefined,
+            $injector.get('settingsApi').fetch(),
+            $injector.get('settingsMailApi').fetch(),
+            $injector.get('contactEmails').load()
+        ]);
+
+        const isSubUser = user.subuser;
+        const { keys } = await decryptKeys({
+            user,
+            addresses,
+            organizationKey,
+            mailboxPassword,
+            isSubUser: user.subuser
+        });
+
+        await keysModel.storeKeys(keys);
+
+        if (!isSubUser) {
+            await activateKeys(addresses, mailboxPassword);
+        }
+
+        return user;
+    };
+
+    const login = async (credentials) => {
+        const { result } = await loginWithFallback({ api: compatApi, credentials });
+        return result;
+    };
+
+    /**
+     * Login and set cookies and UID.
+     * NOTE: Assumes user is in 1-password mode, which is always true for reset password and signup.
+     * @param {Object} credentials
+     * @returns {Promise}
+     */
+    const loginWithCookies = async (credentials) => {
+        const { UID, AccessToken, RefreshToken } = await login(credentials);
+        await authApi.cookies({ UID, AccessToken, RefreshToken }, getAuthHeaders({ UID, AccessToken }));
+        setUID(UID);
+    };
+
+    const fetchUserInfo = async () => {
+        try {
+            const plainMailboxPass = tempStorage.getItem('plainMailboxPass');
+            const userResult = tempStorage.getItem('userResult');
+
+            const user = await networkActivityTracker.track(getUserInfo(userResult));
+            api.user = user;
+            dispatcher.setUser();
+
+            if (plainMailboxPass && !user.OrganizationPrivateKey && !checkKeysFormat(user)) {
+                AppModel.set('upgradingKeys', true);
+                await upgradeKeys({
+                    plainMailboxPass,
+                    oldSaltedPassword: api.getPassword(),
+                    user
+                }).catch((e) => {
+                    console.error(e);
+                });
             }
-        },
 
-        fetchUserInfo() {
-            const promise = User.get().then((user) => {
-                // Redirect to setup if necessary
-                if (user.Keys.length === 0) {
-                    $state.go('login.setup');
-                    return Promise.resolve(user);
+            return user;
+        } catch (error) {
+            // If initializing the sessions fails from login or from f5 refresh, redirect to login.
+            if (error && error.status === 401) {
+                $state.go('login', undefined, { reload: true });
+            } else {
+                // If we are not refreshing from inside. e.g. coming from login or signup. Logout and redirect to login.
+                if ($state.current.name.includes('login')) {
+                    $state.go('login', undefined, { reload: true });
+                } else {
+                    $state.go('login.down', undefined, { location: false });
                 }
-
-                user.subuser = angular.isDefined(user.OrganizationPrivateKey);
-                // Required for subuser
-                const decryptOrganization = () => {
-                    if (user.subuser) {
-                        return decryptPrivateKey(user.OrganizationPrivateKey, api.getPassword());
-                    }
-                    return Promise.resolve();
-                };
-
-                return $q
-                    .all({
-                        settings: $injector.get('settingsApi').fetch(),
-                        mailSettings: $injector.get('settingsMailApi').fetch(),
-                        contacts: $injector.get('contactEmails').load(),
-                        addresses: $injector.get('addressesModel').fetch(user),
-                        organizationKey: decryptOrganization()
-                    })
-                    .then(({ organizationKey, addresses }) => ({ user, organizationKey, addresses }))
-                    .then(({ user, organizationKey, addresses }) => {
-                        return decryptKeys({
-                            user,
-                            addresses,
-                            organizationKey,
-                            mailboxPassword: api.getPassword(),
-                            isSubUser: user.subuser
-                        })
-                            .then(({ keys }) => (keysModel.storeKeys(keys), user))
-                            .catch((error) => {
-                                $exceptionHandler(error);
-                                throw error;
-                            });
-                    });
-            });
-            return networkActivityTracker.track(promise);
+                console.error(error);
+            }
+            throw error;
         }
     };
 
-    function saveAuthData(data) {
-        $log.debug('saveAuthData', data);
+    const setAuthHeaders = (UID) => {
+        $http.defaults.headers.common['x-pm-uid'] = UID;
+    };
 
-        secureSessionStorage.setItem(OAUTH_KEY + ':UID', data.UID);
-        auth.data = _.pick(data, 'UID', 'AccessToken', 'RefreshToken');
+    const { setUID: setUIDAuthStore, getUID, setPassword, getPassword, hasSession } = authenticationStore;
 
-        auth.setAuthHeaders();
-    }
+    const setUID = (UID) => {
+        setUIDAuthStore(UID);
+        setAuthHeaders(UID);
+    };
 
-    function savePassword(pwd) {
-        // Save password in session storage
-        secureSessionStorage.setItem(MAILBOX_PASSWORD_KEY, encodeUtf8Base64(pwd));
-    }
-
-    function receivedCredentials(data) {
-        const eventManager = $injector.get('eventManager');
-        saveAuthData(data);
-        eventManager.initialize(data.EventID);
-    }
+    const initialize = () => {
+        const UID = getUID();
+        if (!UID) {
+            return;
+        }
+        setAuthHeaders(UID);
+    };
 
     // RUN-TIME PUBLIC FUNCTIONS
     let api = {
         user: {},
-        saveAuthData,
-        receivedCredentials,
-        getUID() {
-            return secureSessionStorage.getItem(OAUTH_KEY + ':UID');
-        },
-        detectAuthenticationState() {
-            const uid = secureSessionStorage.getItem(OAUTH_KEY + ':UID');
-            const session = secureSessionStorage.getItem(OAUTH_KEY + ':SessionToken');
-
-            if (uid) {
-                auth.data = {
-                    UID: uid
-                };
-
-                auth.setAuthHeaders();
-            } else if (session) {
-                auth.data = {
-                    UID: decodeBase64(session)
-                };
-
-                // Remove obsolete item
-                secureSessionStorage.setItem(OAUTH_KEY + ':UID', auth.data.UID);
-                secureSessionStorage.removeItem(OAUTH_KEY + ':SessionToken');
-
-                auth.setAuthHeaders();
-            }
-        },
-
-        savePassword(pwd) {
+        setUID,
+        getUID,
+        setPassword(password) {
             // Never save mailbox password changes if sub user
             if (this.user && this.user.OrganizationPrivateKey) {
                 return;
             }
-
-            // Save password in session storage
-            secureSessionStorage.setItem(MAILBOX_PASSWORD_KEY, encodeUtf8Base64(pwd));
+            setPassword(password);
         },
+        getPassword,
+        detectAuthenticationState: initialize,
+        existingSession: hasSession,
+        isLoggedIn: hasSession,
 
-        /**
-         * Return the mailbox password stored in the session storage
-         */
-        getPassword() {
-            const value = secureSessionStorage.getItem(MAILBOX_PASSWORD_KEY);
-            return value ? decodeUtf8Base64(value) : undefined;
-        },
-
-        randomString(length) {
-            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            let i;
-            let result = '';
-            const isOpera = Object.prototype.toString.call(window.opera) === '[object Opera]';
-
-            if (window.crypto && window.crypto.getRandomValues) {
-                const values = new Uint32Array(length);
-                window.crypto.getRandomValues(values);
-
-                for (i = 0; i < length; i++) {
-                    result += charset[values[i] % charset.length];
-                }
-
-                return result;
-            } else if (isOpera) {
-                // Opera's Math.random is secure, see http://lists.w3.org/Archives/Public/public-webcrypto/2013Jan/0063.html
-                for (i = 0; i < length; i++) {
-                    result += charset[Math.floor(Math.random() * charset.length)];
-                }
-
-                return result;
-            }
-            return this.semiRandomString(length);
-        },
-
-        semiRandomString(size) {
-            let string = '';
-            let i = 0;
-            const chars = '0123456789ABCDEF';
-
-            while (i++ < size) {
-                string += chars[Math.floor(Math.random() * 16)];
-            }
-
-            return string;
-        },
-
-        getRefreshCookie(config) {
-            $log.debug('getRefreshCookie');
-            return authApi.refresh({}, config).then((response) => {
-                $log.debug(response);
-
-                // Necessary during the transition to UIDs
-                saveAuthData(response.data);
-
-                return response;
-            });
-        },
-
-        setAuthCookie(authResponse) {
-            $log.debug('setAuthCookie');
-
-            return authApi
-                .cookies({
-                    ResponseType: 'token',
-                    ClientID: CONFIG.clientID,
-                    GrantType: 'refresh_token',
-                    RefreshToken: authResponse.RefreshToken,
-                    Uid: authResponse.UID,
-                    RedirectURI: 'https://protonmail.com',
-                    State: this.randomString(24)
-                })
-                .then((result) => {
-                    $log.debug(result);
-                    $log.debug('/auth/cookies:', result);
-                    $log.debug('/auth/cookies1: resolved');
-                    AppModel.set('domoArigato', true);
-                    // forget the old headers, set the new ones
-                    $log.debug('/auth/cookies2: resolved');
-                    $log.debug('headers change', $http.defaults.headers);
-
-                    saveAuthData(result.data);
-                    AppModel.set('isLocked', false);
-
-                    return result;
-                })
-                .catch((error) => {
-                    const { data = {} } = error;
-                    $log.error('setAuthCookie2', error);
-                    // Report issue to Sentry
-                    $exceptionHandler(data.Error || error); // NOTE: remove this line once the "Invalid access token" issue is solved
-                    throw error;
-                });
-        },
-
-        loginWithCredentials(creds, initialInfoResponse) {
-            const deferred = $q.defer();
-
-            if (!creds.Username || !creds.Password) {
-                deferred.reject({
-                    message: 'Username and Password are required to login'
-                });
-            } else {
-                delete $http.defaults.headers.common.Accept;
-                srp.performSRPRequest(
-                    'POST',
-                    '/auth',
-                    {
-                        Username: creds.Username,
-                        ClientID: CONFIG.clientID
-                    },
-                    creds,
-                    initialInfoResponse
-                ).then(
-                    (resp) => {
-                        // Upgrade users to the newest auth version
-                        if (resp.authVersion < passwords.currentAuthVersion) {
-                            srp.getPasswordParams(creds.Password).then((data) => {
-                                upgradePassword.store(data);
-                                deferred.resolve(resp);
-                            });
-                        } else {
-                            deferred.resolve(resp);
-                        }
-                        // this is a trick! we dont know if we should go to unlock or step2 because we dont have user's data yet. so we redirect to the login page (current page), and this is determined in the resolve: promise on that state in the route. this is because we dont want to do another fetch info here.
-                    },
-                    (error) => {
-                        // TODO: This is almost certainly broken, not sure it needs to work though?
-                        console.error(error);
-                        deferred.reject({
-                            message: error.error_description
-                        });
-                    }
-                );
-            }
-
-            return deferred.promise;
-        },
-
-        existingSession() {
-            if (auth.data && auth.data.UID) {
-                return true;
-            }
-
-            return false;
-        },
-
-        // Whether a user is logged in at all
-        isLoggedIn() {
-            const loggedIn = this.existingSession();
-
-            if (loggedIn && auth.headersSet === false) {
-                auth.setAuthHeaders();
-            }
-
-            return loggedIn;
-        },
-
-        // Whether the mailbox' password is accessible, or if the user needs to re-enter it
-        isLocked() {
-            return this.isLoggedIn() === false || angular.isUndefined(this.getPassword());
-        },
+        login,
+        loginWithCookies,
 
         hasPaidMail() {
             return this.user.Subscribed & 1;
@@ -321,37 +177,19 @@ function authentication(
             return this.user.Private === 1;
         },
 
-        isSecured() {
-            return this.isLoggedIn() && angular.isDefined(this.getPassword());
-        },
-
-        // Return a state name to be in in case some user authentication step is required.
-        // This will null if the logged in and unlocked.
-        state() {
-            if (this.isLoggedIn()) {
-                return this.isLocked() ? 'login.unlock' : null;
-            }
-            return 'login';
-        },
-
-        // Redirect to a new authentication state, if required
-        redirectIfNecessary() {
-            const newState = this.state();
-
-            if (newState) {
-                $state.go(newState);
-            }
-        },
-
         /**
          * Removes all connection data
          * @param {Boolean} redirect - Redirect at the end the user to the login page
          */
         logout(redirect, callApi = true) {
-            const uid = secureSessionStorage.getItem(OAUTH_KEY + ':UID');
+            const uid = authenticationStore.getUID();
+            // Race condition when logging in
+            if (uid) {
+                loggedOutSessions.addUID(uid);
+            }
+
             const process = () => {
                 this.clearData();
-
                 if (redirect === true) {
                     $state.go('login');
                 }
@@ -368,15 +206,19 @@ function authentication(
 
         clearData() {
             try {
+                destroyOpenpgp();
+                // Ignore the promise from loadOpenpgp since it would be annoying to handle better
+                // In the best case it should be fast since it's cached, and it would only have an impact if the user logs in before it's fully loaded.
+                loadOpenpgp();
                 // Reset $http server
                 $http.defaults.headers.common['x-pm-session'] = undefined;
                 $http.defaults.headers.common.Authorization = undefined;
                 $http.defaults.headers.common['x-pm-uid'] = undefined;
                 // Completely clear sessionstorage
-                secureSessionStorage.clear();
+                secureSessionStorage.reset();
+                tempStorage.clear();
                 // Delete data key
-                delete auth.data;
-                auth.headersSet = false;
+                api.loggedIn = false;
                 // Remove all user information
                 this.user = {};
                 // Clean onbeforeunload listener
@@ -384,11 +226,9 @@ function authentication(
                 // Disable animation
                 AppModel.set('loggingOut', false);
                 // Re-initialize variables
-                AppModel.set('isLoggedIn', this.isLoggedIn());
-                AppModel.set('isLocked', this.isLocked());
-                AppModel.set('isSecure', this.isSecured());
-                AppModel.set('domoArigato', false);
                 AppModel.set('loggedIn', false);
+                AppModel.set('isLoggedIn', false);
+                AppModel.set('isSecure', false);
                 $injector.get('contactEmails').clear();
             } catch (e) {
                 // Do nothing as we lazy load some service it can throw an error
@@ -396,92 +236,7 @@ function authentication(
             }
         },
 
-        // Returns an async promise that will be successful only if the mailbox password
-        // proves correct (we test this by decrypting a small blob)
-        unlockWithPassword(
-            pwd,
-            {
-                PrivateKey = '',
-                AccessToken = '',
-                RefreshToken = '',
-                Uid = '',
-                ExpiresIn = 0,
-                EventID = '',
-                KeySalt = ''
-            } = {}
-        ) {
-            const req = $q.defer();
-            if (pwd) {
-                tempStorage.setItem('plainMailboxPass', pwd);
-                passwords
-                    .computeKeyPassword(pwd, KeySalt)
-                    .then((pwd) => checkMailboxPassword(PrivateKey, pwd, AccessToken))
-                    .then(
-                        ({ token, password }) => {
-                            savePassword(password);
-                            receivedCredentials({
-                                AccessToken: token,
-                                RefreshToken,
-                                UID: Uid,
-                                ExpiresIn,
-                                EventID
-                            });
-                            upgradePassword.send();
-                            req.resolve(200);
-                        },
-                        () => {
-                            req.reject({
-                                message: 'Wrong decryption password.'
-                            });
-                        }
-                    );
-            } else {
-                req.reject({
-                    message: 'Password is required.'
-                });
-            }
-
-            return req.promise;
-        },
-
-        fetchUserInfo() {
-            const promise = auth.fetchUserInfo();
-
-            return promise
-                .then((user) => {
-                    if (!user.DisplayName) {
-                        user.DisplayName = user.Name;
-                    }
-
-                    AppModel.set('isLoggedIn', true);
-                    this.user = user;
-                    dispatcher.setUser();
-
-                    const plainMailboxPass = tempStorage.getItem('plainMailboxPass');
-                    tempStorage.removeItem('plainMailboxPass');
-
-                    if (plainMailboxPass && !user.OrganizationPrivateKey) {
-                        if (!checkKeysFormat(user)) {
-                            AppModel.set('upgradingKeys', true);
-                            return upgradeKeys({
-                                mailboxPassword: plainMailboxPass,
-                                oldSaltedPassword: this.getPassword(),
-                                user
-                            }).then(() => Promise.resolve(user));
-                        }
-                    }
-
-                    return user;
-                })
-                .catch((error) => {
-                    $state.go('support.message', { error });
-                    throw error;
-                });
-        },
-
-        params(params) {
-            return params;
-        }
+        fetchUserInfo
     };
 
     return api;

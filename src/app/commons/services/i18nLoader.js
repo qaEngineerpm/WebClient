@@ -43,23 +43,21 @@ function i18nLoader(dispatchers, gettextCatalog, $injector) {
         const pikadayConfiguration = $injector.get('pikadayConfiguration');
 
         /*
-            Localize pikaday
-            american days means that the translated string is in american order:
-            sunday, monday, tuesday, wednesday
-            This is because pikaday expects this order.
+            Do not use the Boolean flag for
+                - weekdays
+                - weekdaysShort
+            The list must start with Sunday, else Pikaday is unable to know what's the firstday of the week, even if you specify firstDay.
             The actual order of the days is set by the firstday parameter.
          */
-        const locale = {
-            previousMonth: gettextCatalog.getString('Previous Month', null, 'Pikaday'),
-            nextMonth: gettextCatalog.getString('Next Month', null, 'Pikaday'),
-            months: moment.months(),
-            weekdays: moment.weekdays(true),
-            weekdaysShort: moment.weekdaysShort(true)
-        };
-
         pikadayConfiguration.update({
-            i18n: locale,
-            firstDay: moment.localeData().firstDayOfWeek(),
+            i18n: {
+                previousMonth: gettextCatalog.getString('Previous Month', null, 'Pikaday'),
+                nextMonth: gettextCatalog.getString('Next Month', null, 'Pikaday'),
+                months: moment.months(),
+                weekdays: moment.weekdays(),
+                weekdaysShort: moment.weekdaysShort()
+            },
+            firstDay: moment.localeData().firstDayOfWeek(), // most important flag here
             format: moment.localeData().longDateFormat('L')
         });
     };
@@ -70,7 +68,6 @@ function i18nLoader(dispatchers, gettextCatalog, $injector) {
     const localizeDate = () => {
         const { translationLocale, browserLocale } = CACHE;
         $injector.get('dateUtils').init();
-
         moment.locale(selectLocale(translationLocale, browserLocale));
 
         localizePikaday();

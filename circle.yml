@@ -2,13 +2,13 @@ version: 2
 jobs:
    build:
      docker:
-       - image: circleci/node:10.3.0-stretch-browsers
+       - image: circleci/node:12.4.0-stretch-browsers
      steps:
        - run: sudo apt-get install -y gawk
        - checkout
        - restore_cache:
            key: npm-deps-{{ checksum "package.json" }}-{{ checksum "tasks/lazyInstallVendor" }}
-       - run: npm i
+       - run: npm i --no-audit
        - run: ./tasks/lazyInstallVendor test
        - save_cache:
            key: npm-deps-{{ checksum "package.json" }}-{{ checksum "tasks/lazyInstallVendor" }}

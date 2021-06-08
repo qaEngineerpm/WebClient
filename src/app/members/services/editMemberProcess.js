@@ -9,12 +9,13 @@ function editMemberProcess(
     setupKeys,
     membersValidator,
     notification,
-    eventManager
+    eventManager,
+    translator
 ) {
-    const I18N = {
+    const I18N = translator(() => ({
         SUCCESS_UPDATE: gettextCatalog.getString('User updated', null, 'Info'),
         SUCCESS_CREATE: gettextCatalog.getString('User created', null, 'Info')
-    };
+    }));
 
     /**
      * Edit a member
@@ -37,12 +38,12 @@ function editMemberProcess(
             unit,
             name,
             hasVPN,
-            size,
+            size: encryptionConfigName,
             ID
         } = model;
 
         const quota = Math.round(storageSliderValue * unit);
-        const vpn = Math.round(vpnSliderValue);
+        const vpn = Math.round(vpnSliderValue) || 0; // vpn value coming from Slider can be NaN
 
         const updateName = (member) => {
             if (oldMember && oldMember.Name === name) {
@@ -88,7 +89,7 @@ function editMemberProcess(
                 return { member };
             }
             const list = !addresses.length ? params.member.Addresses : addresses;
-            const key = await setupKeys.generate(list, temporaryPassword, size);
+            const key = await setupKeys.generate(list, temporaryPassword, encryptionConfigName);
             return { member, key };
         };
 

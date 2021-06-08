@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { ContactUpdateError } from '../../../helpers/errors';
-import { createCancellationToken } from '../../../helpers/promiseHelper';
+import { createCancellationToken, runChunksDelayed } from '../../../helpers/promiseHelper';
 import { getCategoriesEmail } from '../../../helpers/vcard';
 import {
     CONTACTS_LIMIT_REQUESTS,
@@ -9,7 +9,8 @@ import {
     EXPORT_CONTACTS_LIMIT,
     CONTACT_CARD_TYPE,
     CONTACT_EMAILS_LIMIT,
-    CONTACTS_LIMIT
+    CONTACTS_LIMIT,
+    CONTACTS_REQUESTS_PER_SECOND
 } from '../../constants';
 
 const { ENCRYPTED, ENCRYPTED_AND_SIGNED } = CONTACT_CARD_TYPE;
@@ -38,27 +39,29 @@ function Contact($http, dispatchers, url, chunk, contactEncryption, sanitize, ev
         return $http.get(route, { params, timeout }).then(({ data = {} } = {}) => data);
     }
 
-    async function queryContacts(route = '', { PageSize, LabelID, key = '' }, timeout) {
-        const data = await request(route, { PageSize, LabelID }, timeout);
-        const promises = [Promise.resolve(data[key])];
-        const n = Math.ceil(data.Total / PageSize) - 1; // We already load 1 or 2 pages
+    const requestPagesChunked = (amount, cb, startIndex = 0) => {
+        const pages = [...new Array(amount)].map((a, i) => i + startIndex);
+        const chunks = chunk(pages, CONTACTS_REQUESTS_PER_SECOND);
+        return runChunksDelayed(chunks, cb, 1000);
+    };
 
-        if (n > 0) {
-            const list = _.times(n, (index) => {
-                return request(
-                    route,
-                    {
-                        PageSize,
-                        Page: index + 1
-                    },
-                    timeout
-                ).then((data) => data[key]);
-            });
-            promises.push(...list);
-        }
+    /**
+     * Query contacts throttled to not hit rate limiting
+     * @param {String} route
+     * @param {Number} PageSize
+     * @param {String} key
+     * @param {Number} timeout
+     * @returns {Promise<Array>}
+     */
+    async function queryContacts(route = '', { PageSize, key = '' }, timeout) {
+        const requestPage = (page) => request(route, { PageSize, Page: page }, timeout);
 
-        const list = await Promise.all(promises);
-        return list.reduce((acc, item) => acc.concat(item), []);
+        const firstPage = await requestPage();
+        const n = Math.ceil(firstPage.Total / PageSize) - 1; // We already load 1 or 2 pages
+
+        const restPages = n > 0 ? await requestPagesChunked(n, requestPage, 1) : [];
+
+        return [firstPage, ...restPages].reduce((acc, item) => acc.concat(item[key]), []);
     }
 
     /**
@@ -287,14 +290,10 @@ function Contact($http, dispatchers, url, chunk, contactEncryption, sanitize, ev
      * @return {Promise}
      */
     async function exportAll(PageSize = EXPORT_CONTACTS_LIMIT, cancellationToken = createCancellationToken()) {
-        const contacts = await queryContacts(
-            requestURL('export'),
-            {
-                key: 'Contacts',
-                PageSize
-            },
-            cancellationToken.getCancelEvent()
-        );
+        const contacts = await queryContacts(requestURL('export'), {
+            key: 'Contacts',
+            PageSize
+        });
         return contactEncryption.decrypt(contacts, cancellationToken, true);
     }
 

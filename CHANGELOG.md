@@ -1,521 +1,520 @@
-# [3.15.11] - 2019-01-08
+# [3.16.65] - 2021-06-08
+
+## Updates
+
+- Remove link to old version since v3 will be hosted only on old domain
+- Update encrypted outside design (mountains)
+
+## Fixes
+
+- IE11 fix for encrypted outside pages
+
+# [3.16.64] - 2021-06-03
+
+## Fixes
+- Various UI/UX improvements Fixes
+
+# [3.16.63] - 2021-05-27
+
+## Fixes
+- Fix issue on Safari 13.1
+
+# [3.16.62] - 2021-05-27
+
+## Updates
+
+- Remove beta link on login page
+- Update footer copy on login page
+- Update encrypted outside pages to match with v4 design
+- Remove version number present in user dropdown when a new version is available
+- Update abuse modal copy
+
+## Fixes
+
+- Fix missing plural forms 
+
+# [3.16.61] - 2021-04-09
+
+- Add available domains params on login page
+
+# [3.16.60] - 2021-03-12
+
+## Fixes
+
+-   Fix url support on older versions of chrome
+
+# [3.16.59] - 2021-03-08
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.58] - 2021-02-09
+
+## Improvements
+
+-   Improve signup loading time
+
+# [3.16.57] - 2021-02-04
+
+## Fixes
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.56] - 2021-02-03
+
+## Fixes
+
+- Fix incorrect message decryption in certain cases
+
+# [3.16.55] - 2021-02-01
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.54] - 2021-01-31
+
+## Fixes
+
+- Improve error notification handling
+
+# [3.16.53] - 2021-01-20
+
+## Updates
+
+- Increase base timeout for signup iframe challenge
+
+## Fixes
+
+- Fix addresses typo
+- List all `ClientID` for sessions section
+
+# [3.16.52] - 2021-01-13
+
+## Improvements
+
+-   Add retry mechanism when inputs are not loading properly on signup page
+
+# [3.16.51] - 2021-01-05
+
+## Updates
+
+-   Sign attachments with the primary key to support new API changes
+
+# [3.16.50] - 2020-12-29
+
+## Fixes
+
+-   Delete account process was not working properly for paid account
+
+# [3.16.49] - 2020-12-28
+
+## Fixes
+
+-   Refresh name and password for VPN after reset
+
+# [3.16.48] - 2020-12-28
+
+## Updates
+
+-   Includes Safari 14.0.2 version to broken upload
+-   Reset VPN user/name instead of manual edition
+
+# [3.16.47] - 2020-12-15
+
+## Improvements
+
+-   Show tooltip for broken Safari
+-   Make Feature API call silent
+-   Add missing plural form
+
+## Fixes
+
+-   `hasBonuses` has to check `LoyaltyCounter` not just `Flags`
+
+## Updates
+
+-   Add forbidden login auth event
+-   Remove end limit for product payer promotion
+-   Turn autocomplete off for username input
+-   Try to apply BF2020 coupon code each time the user update subscription configuration
+
+# [3.16.46] - 2020-11-25
+
+## Improvements
+
+-   Add red dot for BF navigation icon
+-   Remove cookie support for remembering displayed modals
+-   Update whitelist / blacklist to Allow List/Block List
+
+# [3.16.45] - 2020-11-19
+
+## Fixes
+
+-   Next promotion was sometimes not properly calculated.
+-   Promotion state was not reset after logout.
+
+# [3.16.44] - 2020-11-17
+
+## Improvements
+
+-   Reduce number of time we are checking promotion logic period.
+
+# [3.16.43] - 2020-11-16
+
+## Improvements
+
+-   Keep promotion modal state with API instead of using local storage.
+
+# [3.16.42] - 2020-11-16
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.41] - 2020-11-13
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.40] - 2020-11-09
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.39] - 2020-11-04
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.38] - 2020-11-04
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+# [3.16.37] - 2020-10-28
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+## Fixes
+
+-   Various bug fixes
+
+# [3.16.36] - 2020-10-28
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+## Fixes
+
+-   Various bug fixes
+
+# [3.16.35] - 2020-10-28
+
+## Improvements
+
+-   Various UI/UX improvements Fixes
+
+## Fixes
+
+-   Various bug fixes
+
+# [3.16.34] - 2020-10-05
+
+## Fixes
+
+-   In some cases, the application failed to load the username input field on the account creation page.
+
+## Improvements
+
+-   Better error handling on account creation page
+-   Increased VPN add-on limit to 1000 connections
+
+# [3.16.33] - 2020-08-03
+
+## Updates
+
+-   Added a warning state for DKIM state to avoid confusion with the error state
+
+# [3.16.32] - 2020-07-31
+
 ## Fixed
 
-- Sender verification failed on some old messages
-- Mark As Read button was missing a border on the left side
-- The signature is disappearing from the default address in some cases
-- The back arrow didn't show the previous email
-- Load remote content did not work in some cases
-- Some behaviour fixes for IE11
+-   Fixed an issue whereby users could not unsubscribe from forwarded message if the address is not found (catch-all)
+-   Fixed outstanding bugs that may get users to receive an "invalid access token" upon logging out
 
-# [3.15.10] - 2019-01-03
-## Fixed
-- ESC key was unresponsive in some cases
-- Amount Mismatch error was shown when using certain coupons
-- Login issues for some sub-user accounts
-- 'Empty Trash' didn't refresh the UI
+# [3.16.31] - 2020-07-27
 
-# [3.15.9] - 2018-12-23
-## Fixed
-- Create draft with `@pm.me` address on FREE account
-- Old Safari 9.x can't load the web-app
+## Updates
 
-# [3.15.8] - 2018-12-21
+-   User deletion improvements
+
+# [3.16.30] - 2020-07-14
+
+## Updates
+
+-   DKIM guide improvements
+
 ## Fixed
-- Saving message as draft sets an encryption for non-ProtonMail addresses
-- Reports from users about logging in with 1Password
+
+-   Improve paypal verification flow
+
+# [3.16.29] - 2020-06-27
+
+## Fixed
+
+-   Fix contact keys showing as inactive
+
+# [3.16.28] - 2020-06-27
+
+## Fixed
+
+-   Fix decryption error for certain users on login
+
+# [3.16.27] - 2020-06-23
+
+## Fixed
+
+-   Display verification error when attempting to verify account with existing email or username
+-   Race condition when changing password
+-   Handle non-existing sender
+-   Member key list signature verification for key activation
+
+# [3.16.26] - 2020-06-17
+
+## Fixed
+
+-   "Invalid access token" error appearing under some specific conditions
+-   Wrong Android app link in the welcome modal
+
+## Updates
+
+-   DKIM automatic key rotation
+
+# [3.16.25] - 2020-05-30
+
+## Fixed
+
+-   Bug with the scrollbar located in the sidebar
+
+# [3.16.24] - 2020-05-29
+
+## Fixed
+
+-   Bug when using the address option in advanced search
+-   Bug when activating a ProtonMail mailbox in some cases
+-   Bug when user is signed out upon receiving an internal server error
+-   Various bugs related to processing notifications and unread counters
+
+## Updates
+
+-   reCAPTCHA verification - adding privacy and terms links
+-   Open PGP 4.10 - adding polyfill for atob
+-   Payments - improving token processing
+-   Encryption - upgrading keys
+
+# [3.16.23] - 2020-04-09
+
+## Fixed
+
+-   SMS and Email verification bugs during sign up
+-   Translations bugs
+-   Disable address bug
+
+## Updated
+
+-   COVID-19 campaign bonus added
+
+# [3.16.22] - 2020-03-10
+
+## Updated
+
+-   New OpenPGP version
+
+# [3.16.21] - 2020-02-17
+
+## Fixed
+
+-   Add support for DKIM rotation
+
+# [3.16.20] - 2020-01-09
+
+## Fixed
+
+-   On rare occasions an older draft was sent instead of the current one
+-   Some users were randomly logged out if the tab was kept open for a long time
+-   Some mail-to links did not properly work on Safari
+
+## Updated
+
+-   New OpenPGP version
+
+# [3.16.19] - 2019-12-17
+
+## Fixed
+
+-   Upgrade button was not properly displayed for free accounts
+
+# [3.16.18] - 2019-12-12
+
+## Fixed
+
+-   Two year plan was not shown as an option in some cases
+-   PayPal payment method was not always saved on sign-up
+
+# [3.16.17] - 2019-12-03
+
+## Fixed
+
+-   extending some customized plans displayed an error that upgrade is not possible
+
+# [3.16.16] - 2019-12-03
+
+## Fixed
+
+-   organization admins were not able to log into non-private user accounts
+
+# [3.16.15] - 2019-12-02
 
 ## Changed
-- Update "More info" link to the latest blog post (#8255)
 
-# [3.15.7] - 2018-12-20
+-   Updated promotional modal for Plus users
 
-## Changed
-- Update all translations
-
-# [3.15.6] - 2018-12-19
-## Added
-- App suggestion when visiting the web version from a mobile device
-- Select All/Deselect All checkbox when adding multiple recipients
-- New version notification under the User menu
-
-## Fixed
-- Fixed a bug where the SRP modulus signature was not verified by the web client. Reported by N. Kobeissi and S. Zanella.
-- Incorrect error message was shown when adding a new addresses to a custom domain
-- Free users were unable to delete multiple contact groups
-- Set focus on Name input field when adding a new contact
-- Gift codes were not properly working at signup
-- Contact groups that contain contacts with invalid PGP keys couldn't be edited in the composer
-- Verifying contacts didn't refresh the contact view
-- Incorrect padlock color for some messages
-- Failure to reactivate an email key blocked the display of contacts
-- Click on copy address closed the message
-- Dropdown menus overlaped with clicking on different contact categories
-- Invalid display of long custom domain names
-- Contact group long names didn't fit into the import modal
-- Changing contact group name didn't update in all locations
-- An address could be missing after being removed from a contact group
-- Log out button was unclickable when in the Auto-Reply tab
-- Some characters were not recognized in the password
-- Select all contacts broke the checkbox alignment
-- Newly created additional address did not show in the advanced search menu
-
-## Changed
-- Setup account where keys don't exist
-- Plaintext behavior for new messages
-
-# [3.15.3] - 2018-11-23
-## Fixed
-- Changes on the Dashboard did not update if you use the BlackFriday offer
-- Mobile: Menu, Search and Compose buttons were inactive with a minimized composer
-- Some scrolling issues
-
-## Changed
-- Don't show the Balck Friday offer modal every time the user goes to the dashboard page
-
-# [3.15.2] - 2018-11-22
-## Fixed
-- "Unknown ASCII armor type" error was shown when importing private key for contacts
-
-## Changed
-- Behavior for some options on the Dashboard
-
-# [3.15.1] - 2018-11-22
-## Fixed
-- "Add multiple recipients" modal did not clear the selected addresses in some cases
-- "Add multiple recipients" modal added the selected addresses in all open composers
-- Email type dropdown was not closed when rearranging addresses
-- The printing font was very small for some documents
-- Some error messages appeared when accessing Advanced contact settings
-
-# [3.15.0] - 2018-11-20
-
-[![ProtonMail v3.15 has been released!](assets/img/v3-15.jpg)](https://protonmail.com/blog/protonmail-v3-15-release-notes/)
-
-[ProtonMail 3.15](https://protonmail.com/blog/protonmail-v3-15-release-notes/)
-
-## Added
-
-- Contact groups
-- Read receipts
-
-# [3.14.36] - 2018-11-17
-
-## Fixed
-- Custom folder/label list in left nav bar is not scrollable at certain resolutions/zoom levels
-- After clicking the "create account" button, the page defaults to FR language
-
-# [3.14.35] - 2018-11-17
-
-## Fixed
-- Failed to execute 'btoa' on 'Window': The string to be encoded contains characters outside of the Latin1 range.
-- Top menu overlaps wit other page content
-
-## Changed
-- Storage has an incorrect addon mapping
-
-# [3.14.34] - 2018-11-16
-## Added
-- Spelling mistake in Settings > Appearance > Toolbar
-
-## Fixed
-- Top menu overlaps with other page content
-
-# [3.14.33] - 2018-11-16
-
-## Fixed
-- Sending a message was not working
-- Refresh contact on update
-- Removed `z-index` property to solve the header issue
-- Review signup + labels on mobile
-
-# [3.14.32] - 2018-11-15
-
-## Fixed
-- Adding new label from dropdown list doesn't refresh the dropdown list
-- Invalid password field height
-
-# [3.14.31] - 2018-11-15
-
-## Added
-- Link to the beta version on the signup page
-
-## Fixed
-- Clearing contact photo didn't reset the preview image
-- Selecting a label didn't close the drop-down menu
-- Change organization name button was misaligned
-- Creating a new organization didn't update the main input field
-- Creating an organization showed an incorrect amount of storage used by the admin
-- Full fingerprint was not shown when hovering over it in the advanced contact settings
-- "Move to" and "Label as" inbox actions don't work in some cases
-- When the first label or folder has an emoji, the top of the emoji was cut off
-- Two remove buttons appeared when searching contacts
-- Vcard exported incorrect picture URL structure
-- Free users were unable to use unsubscribe from mailing lists in some cases
-- Some visual issues with Contacts display on certain resolutions
-
-## Changed
-- Login page rearranged to include link to the beta version
-- Label UI on labels / folders page
-- "Send" action behavior with some invalid addresses
-
-# [3.14.30] - 2018-10-30
-## Fixed
-- Two "++" are added if you respond from a plus alias address
-# [3.14.29] - 2018-10-30
-## Added
-- Added Reply/Reply All/Forward options for emails that can’t be decrypted
-
-## Fixed
-- Some newsletters did not display properly
-- Sometimes wrong suggestions were displayed in the "To:" field
-- The "from" email was displayed twice in draft messages from custom folders
-- The "other" phone type was displayed as "X-other"
-- When unsubscribing from a newsletter with a + alias the response was sent from the main address
-- Advanced settings warning was incorrectly shown
-- The Dashboard was not showing properly in Internet Explorer for paid accounts
-- Adding phone numbers and emails was not properly shown in the Contact field
-- To/CC/BCC were broken if too many emails are added
-- When configuring Auto-Reply the "SAVE" button did not work in some cases
-- Changing the "From" address disaplayed both old and new names in the "From" field in a custom folder with a draft message
-- Tooltip was displayed behind the VPN Protection info window
-- Hitting Backspace after deleting an address in the To field acted as the browser's back button
-- Padlock icons in the composer were partially hidden
-
-## Changed
-- Email address handling with + aliases
-- Show 'Invalid access token' error instead of the 'Refresh failed' error
-
-# [3.14.28] - 2018-10-24
-## Added
-- Warning for email addresses that fail validation
-
-## Fixed
-- Clicking on the new mail notification and clicking delete results with the second email being deleted
-- Performance issues related to loading messages
-
-# [3.14.27] - 2018-10-24
-## Fixed
-- Opening a message can take time
-- You cannot Unstar a message once it's starred when threading mode is off
-- Hash for vendor not properly generated because the hashes for the files are the same
-- Keys don't appear for member
-
-# [3.14.25] - 2018-10-23
-## Fixed
-- Keys saved in the cache were erased after an event
-
-# [3.14.24] - 2018-10-23
-## Added
-- Add code of conduct file
-
-## Fixed
-- Fix issues regarding newly generated keys
-- Error message "Uploaded key does match selected key." is shown when the key doesn't match.
-- [IE 11] PGP-Encrypted padlock takes up lots of space.
-
-# [3.14.23] - 2018-10-19
-## Fixed
-- Fixed an issue with keys generation for sub-users
-
-# [3.14.22] - 2018-10-19
-## Added
-- An error message is now displayed for all users if the account is delinquent
-
-## Fixed
-- iCalendar ( .ics) files could bypass the loading of remote content setting
-- Header was not displayed properly in the domain wizard on Firefox
-- iOS rendering issue
-- Image for a contact was not displayed properly in Internet Explorer
-- Addresses were not alligned properly in Settings/filters on Internet Explorer
-- Time displayed next to a sent message was the time when the draft was saved, not when the message was sent
-- Opening the last message in the "show unread" mode caused an issue with viewing
-- "Message sent" notification was not showing when responding from encrypted messages sent to non ProtonMail addresses
-
-# [3.14.21] - 2018-10-17
-## Fixed
-- Advanced settings did not save changes
-- The scroll bar didn't show in Contacts view
-
-# [3.14.20] - 2018-10-17
-## Fixed
-- "You have no contacts" message was not centered on IE
-- After trusting keys the lock icon didn't update properly
-- "Cannot read property 'Keys' of undefined" error showed when pressing Escape in the signature editor
-- Minor issue with loading messages
-- "Invalid input" error message when you edit a contact with some characters in the Display name
-- Importing a public key for a second address on a same contact replaced the key on the original address
-- Mark email addresses that fail validation in red
-- Some fields in the contacts were not displayed in certain cases
-- "[object Object]" was shown as an error message if invalid credit card data was entered
-
-## Changed
-- Print now opens as
-- Changes to the labeling for conversations/messages
-- Some errors were not displayed properly
-- Labels attribute was missing in some cases
-- Display embedded content was not working properly
-
-# [3.14.19] - 2018-10-12
-## Fixed
-- Fixed remove/clear input button on IE
-- Tutorial didn't start if triggered manually
-- Custom filter options dropdown was closed after each selection.
-
-## Changed
-- View headers is now shown in the same window as a pop-up
-
-# [3.14.18] - 2018-10-10
-
-## Fixed
-- You cannot reply to a PGP message, an error "Invalid message body" was shown
-
-# [3.14.17] - 2018-10-09
-
-## Added
-- Increase domain limit to 100 for the professional plan
-- Adding URL in Contact details was not shown as hyperlink
-
-## Fixed
-- Can't access ProtonMail with an unpaid invoice on the account
-- Some menus remained open until something else is clicked.
-- Label loading issue if message was moved to a custom folder
-
-# [3.14.16] - 2018-10-05
+# [3.16.14] - 2019-11-29
 
 ## Fixed
 
-- Copy, cut and paste was not working with Edge browser
-- Advanced Sieve editor was broken
+-   The compose button was not usable for some users
 
-# [3.14.15] - 2018-10-04
-## Fixed
-- Requesting desktop permission Safari crashes the login process
-
-# [3.14.14] - 2018-10-04
-## Fixed
-- "Cannot read property `map` of undefined" error in console
-- After deleting a new unread message, the counter from All Mail folder doesn't refresh itself automaticaly
-- Image in Drafts does not load even if Load embedded images is enabled
-- composer took too long to open with some addresses
-- Edit contact phone broke the format
-
-## Changed
-- translation format issue in templates
-- New signup username checks
-- dropdown labels behavior
-- Don't show errors for missing keys
-
-# [3.14.13] - 2018-09-28
-## Added
-- Contact key status tooltip
-- Storage warning modal
-
-## Fixed
-- Can't create a weekly automatic reply
-- Marking a conversation as unread triggers an error
-- Conversation doesn't move to correct spot and messages/time is not updated
-- Missing strings for localisations
-- When adding an additional address to a contact, the display format of the addresses changed
-- Account can be created with an invalid recovery address
-- Marking a conversation as unread triggers an error
-- Contacts order is not saved
-- The notification element is visible, blocking clicks when it's not displayed
-- Slow thping issue in some cases
-- Pressing the ADD ADDRESS for free accounts didn’t show correct error
-- If you copy+paste remote images in the composer, they will show up twice
-- Replying and Forwarding a message displays an incorrect From address after changing the From address
-- Human verification by email displays both "Verification code sent" and "Please use a non-ProtonMail email address"
+# [3.16.13] - 2019-11-28
 
 ## Improved
-- Label creation
-- Filter creation
-- Add a contact with advanced settings
-- improvments for IE11
 
-## Changed
-- Proton signature toggle was not updating
-- Human verification fail on Edge
+-   Payment and promotion modals
 
-# [3.14.12] - 2018-09-13
+# [3.16.12] - 2019-11-26
 
 ## Fixed
 
-- Fixed a signup issue with some languages
+-   prices on some promotion modals were shown incorrectly
 
-# [3.14.11] - 2018-09-12
-
-## Fixed
-
-- Wrong messages shown in some cases when move actions are applied
-- Time formats were incorrectly showing 24-hour time
-- Sign external messages setting did not update correctly
-
-# [3.14.10] - 2018-09-07
+# [3.16.11] - 2019-11-25
 
 ## Fixed
 
-- Unread counter was not working in custom folders / labels
+-   Black Friday link condition
 
-# [3.14.9] - 2018-09-07
-
-## Changed
-
-- Hide advanced settings button in add contact details
-
-# [3.14.8] - 2018-09-07
-
-## Fixed
-
-- Folders and labels were missing from the left sidebar menu
-
-# [3.14.7] - 2018-09-07
-
-## Fixed
-
-- Keyboard shortcuts were not working properly
-- Fixed minor modal issues
-
-## Changed
-
-- Save button only visible in edit mode for contact
-- Review signature structure
-
-# [3.14.6] - 2018-09-06
-
-## Fixed
-- Address Keys buttons aligned in one line
-- Star icon was pushed to bottom
-- Keyboard shortcuts didn't work
-- The Tutorial was not closing for new users
-- Some toggles were not properly saving
-
-# [3.14.5] - 2018-09-05
-
-## Added
-- Visible focus
-- Allow address reordering in Settings>Addresses/Users
-- Set the email subject as document name when using the Print option to save message as pdf
-- Missing strings in source file for translations
-- Consistency between Settings -> Account -> Identity and Settings -> Account -> Address Priority
-- Changes in message metadata
-
-## Fixed
-- Custom theme fixes
-- Changes for sending and updating messages
-- HTML tags in plaintext messages not escaped
-- Users order in Settings>Addresses/Users
-- Advanced contact settings general fixes
-- Using the LastPass extension makes the "SUBMIT" button inactive
-- Attachments didn't appear in some cases
-- Account creation fix for unavailable usernames
-- Sent / Drafts folders appearance fix for moving messages
-- Decryption error fix for some cases
-- Fixes for inline images
-- Error when sending message to disabled addresses
-- Occasionally get "Invalid input" when reordering labels
-- Insert image and Insert link options from composer did not work on Safari
-- Composer window does not open when replying to a message (plaintext)
-- Externally PGP encrypted files are forwarded decrypted with the wrong extension (.gpg)
-- Dark Theme Colors Fix
-
-## Improved
-- Retain selection of Emails after applying labels
-- Download all embedded images at once improvement
-- Improve conversation labeling
-
-## Changed
-- Make "Set primary" clickable
-- Custom radio buttons in settings
-- Make custom radio and custom checkbox focussable
-- Make toggle focussable
-- Extract single vCard field
-- Import contacts
-- Adjust autocomplete height list
-- Load remote content when sending message
-- Embedded images detection
-
-# [3.14.4] - 2018-08-07
+# [3.16.10] - 2019-11-25
 
 ## Added
 
-- Improvements for unsubscribe feature
-- Add empty all draft action
-
-## Fixed
-
-- Save contact changes from advanced modal issue
-- Fixed issue with some messages not rendering properly
-- Fixed custom filter folder selection
-- Fixed email address detection between "< >" for plain text messages
-- Fix for some inline images that weren't loading properly
-- Fixed overlapping of icons/labels on Firefox
-- Fixed issue with importing keys on IE11
-- Fixed login for VPN only user logging in for the first time
-- Fixed detection of custom fields when importing .vcf file
+-   warning for browsers that do not support payment confirmations in a new tab
 
 ## Changed
 
-- Report phishing now also sends the message to spam
-- Hide action column on keys page for non private users
-- Display of days selection on Auto-rply screen
-- Verifying with compromised keys gives a correct warning
-- Reviewed bug modal design
-- Changed the handling of feedbacks when deleting an account
+-   Payment improvements
 
-# [3.14.3] - 2018-07-26
+# [3.16.9] - 2019-11-20
+
+-   Fixed an issue that caused Safari to show inconsistent dates in some cases
+
+# [3.16.8] - 2019-11-18
+
+-   WKD support for contacts
+-   Added loyalty benefits modal when unsubscribing
+
+# [3.16.7] - 2019-11-14
+
+-   Signup improvements
+-   Added back Portuguese and Calataln translations
+-   Uupdated translations
+-   Fixed a typo in the 2FA modal
+
+# [3.16.6] - 2019-10-01
 
 ## Fixed
 
-- Clean missing conversations: "Conversation doesn't exist"
-- Disallow phishing reports of the message cant be decrypted
-- Avoid to have SAVE and SEND request in the same time
-- "Create a new folder" was not working properly
-- Issue when trying to send a message without a subject
+-   Authentication logs show both log out and login in the same row for 2FA logs
+-   Add support for PayPal credit
+-   Fix show CC/BCC with plain-text mode
+-   Fix chinese issue in composer
 
-# [3.14.2] - 2018-07-25
+# [3.16.5] - 2019-10-01
 
 ## Fixed
 
-- Fix paste links in old browsers
-- Fix SMS input on signup page
-
-# [3.14.1] - 2018-07-25
+-   Both log out and login in events were shown in the authentication logs for some users
+-   Payment methods are now refreshed after top up or donation
+-   Improvements for 3-D secure payment verification
+-   Improvements for some login scenarios
+-   Improvements to the translations
 
 ## Changed
 
-- Improve recipients modal title
+-   Updated pmcrypto library
 
-## Fixed
-
-- Add learn more link for This email has failed its domain's authentication requirements
-- Login redirection was not working
-
-# [3.14.0] - 2018-07-11
-
-[![ProtonMail v3.14 has been released!](assets/img/v3-14.jpg)](https://protonmail.com/blog/protonmail-v3-14-release-notes/)
-
-[ProtonMail 3.14](https://protonmail.com/blog/protonmail-v3-14-release-notes/)
+# [3.16.4] - 2019-09-11
 
 ## Added
 
-- PGP support
-- Address verification
-- Manage address keys
-- Add multiple recipients from the composer
-- New session management options
-- New option for reporting phishing messages
-
-## Changed
-
-- Expiring messages
-- ProtonMail addresses in the composer
-- Remove a contact on mark as spam
+-   Support for payments with 3DS enabled credit cards
 
 ## Fixed
 
-- Some issues with importing contacts
-- Copy/paste images in the composer
-- Wrong date in some cases when using search
-- Some images were not loaded from certain newsletters
-- Additional bug fixes
+-   Attachments were not shown when printing a message
+-   Decryption error was shown for certain messages
+-   Some error messages were not properly displayed
+
+## Changed
+
+-   PayPal payments improvements
+
+# [3.16.3] - 2019-07-29
+
+## Changed
+
+-   Sending limits handling
+-   Removed drag and drop in contacts list
+
+# [3.16.2] - 2019-07-08
+
+## Fixed
+
+-   Cannot import `.csv` files to contact list.
+
+# [3.16.1] - 2019-07-03
+
+## Fixed
+
+-   Auto-reply calendar showed wrong day name in some languages
+-   Contact group didn't appear in auto-suggestion dropdown once removed
+-   Some links failed to open when `request link confirmation` option was enabled
+-   After downloading image attachment it was possible to get logged out
+-   Some characters did not get properly exported in vCard
+-   Some 'Mailto' links did not populate the subject line
+-   Using the star option on a lot of messages could make the browser unresponsive
+-   Embedded image wasn't removed when deleted from attachment list
+
+# [3.16.0] - 2019-06-06
+
+[![ProtonMail v3.16 has been released!](assets/img/v3-16.jpg)](https://protonmail.com/blog/protonmail-v3-16-release-notes/)
+
+[ProtonMail 3.16](https://protonmail.com/blog/protonmail-v3-16-release-notes/)
+
+## Added
+
+-   Prevent homograph Attack while redirecting links (Punycode)
+
+## Fixed
+
+-   Sanitization error was shown for some messages
+-   Credits added via Bitcoin could not be used immediately
+-   Adding more that one VPN connection to a user resulted in only one connection being applied

@@ -1,5 +1,3 @@
-.contactGroupsOverview-container, .contactGroupsOverview-container * { box-sizing: border-box }
-
 .contactGroupsOverview-container {
     display: inline-flex !important;
     line-height: initial !important;
@@ -27,5 +25,8 @@
     pointer-events: all;
 }
 
-.contactGroupsOverview-label i.fa { color: currentColor; }
+.contactGroupsOverview-label i.fa {
+    color: currentColor;
+    line-height: 1.2;
+}
 .contactGroupsOverview-label::after { content: '' !important; }

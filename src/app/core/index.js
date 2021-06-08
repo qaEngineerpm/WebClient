@@ -6,7 +6,7 @@ import SupportController from './controllers/support';
 import hideUpgrade from './directives/hideUpgrade';
 import placeholderProgress from './directives/placeholderProgress';
 import bugModalView from './directives/bugModalView';
-import supportMessage from './directives/supportMessage';
+import accountLoadError from './directives/accountLoadError';
 import newVersion from './directives/newVersion';
 import formatResponseInterceptor from './interceptors/formatResponseInterceptor';
 import serverTimeInterceptor from './interceptors/serverTimeInterceptor';
@@ -30,6 +30,8 @@ import welcomeModal from './factories/welcomeModal';
 import windowModel from './factories/windowModel';
 import SidebarController from './controllers/sidebar';
 import confirm from './services/confirm';
+import loadApi from './services/loadApi';
+import signupIframe from './directives/signupIframe';
 
 export default angular
     .module('proton.core', ['proton.utils'])
@@ -46,8 +48,9 @@ export default angular
     .directive('hideUpgrade', hideUpgrade)
     .directive('placeholderProgress', placeholderProgress)
     .directive('bugModalView', bugModalView)
-    .directive('supportMessage', supportMessage)
     .directive('newVersion', newVersion)
+    .directive('signupIframe', signupIframe)
+    .directive('accountLoadError', accountLoadError)
     .factory('formatResponseInterceptor', formatResponseInterceptor)
     .factory('serverTimeInterceptor', serverTimeInterceptor)
     .factory('alertModal', alertModal)
@@ -68,4 +71,5 @@ export default angular
     .factory('versionInfoModel', versionInfoModel)
     .factory('welcomeModal', welcomeModal)
     .factory('windowModel', windowModel)
+    .factory('loadApi', loadApi)
     .factory('confirm', confirm).name;

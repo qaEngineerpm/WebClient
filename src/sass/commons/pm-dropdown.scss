@@ -1,6 +1,5 @@
 .pm_dropdown {
 	position: absolute;
-	box-sizing: border-box;
 	left: -1px;
 	top: 100%;
 	background: $main-background;
@@ -105,5 +104,11 @@
                 align-self: center;
             }
         }
+    }
+    /* view source/HTML button */
+    .dropdown-actions-nowrap-button[data-message-mode=''],
+    .dropdown-actions-nowrap-button[data-message-mode="html"] [data-if-message-mode="plain"],
+    .dropdown-actions-nowrap-button[data-message-mode="plain"] [data-if-message-mode="html"] {
+        display: none
     }
 }

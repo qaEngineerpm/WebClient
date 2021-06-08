@@ -1,5 +1,5 @@
 /* @ngInject */
-function organizationApi($http, gettextCatalog, url, srp) {
+function organizationApi($http, url, srp) {
     const requestURL = url.build('organizations');
 
     /**
@@ -12,7 +12,7 @@ function organizationApi($http, gettextCatalog, url, srp) {
      * Get organization keys
      * @return {Promise}
      */
-    const getKeys = () => $http.get(requestURL('keys'));
+    const getKeys = () => $http.get(requestURL('keys')).then(({ data }) => data);
 
     /**
      * Get organization keys
@@ -29,30 +29,26 @@ function organizationApi($http, gettextCatalog, url, srp) {
 
     /**
      * Replace private key for the organization
-     * @param {Object} params
-     * @param {Object} creds
+     * @param {Object} credentials
+     * @param {Object} data
      * @return {Promise}
      */
-    const replaceKeys = (params, creds) => {
-        return srp.performSRPRequest('PUT', '/organizations/keys', params, creds);
-    };
+    const replaceKeys = (credentials, data) => srp.auth.put(credentials, requestURL('keys'), data);
 
     /**
      * Replace current organization keys and member keys
      * @param {Object} params
      * @return {Promise}
      */
-    const updateOrganizationKeys = (params) => $http.put(requestURL('keys'), params);
+    const updateOrganizationKeys = (params) => $http.post(requestURL('keys'), params);
 
     /**
      * Get organization keys
-     * @param {Object} params
-     * @param {Object} creds
+     * @param {Object} credentials
+     * @param {Object} data
      * @return {Promise}
      */
-    const updateBackupKeys = (params, creds) => {
-        return srp.performSRPRequest('PUT', '/organizations/keys/backup', params, creds);
-    };
+    const updateBackupKeys = (credentials, data) => srp.auth.post(credentials, requestURL('keys', 'backup'), data);
 
     /**
      * Update organization name

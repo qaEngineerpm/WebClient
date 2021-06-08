@@ -1,4 +1,5 @@
 import _ from 'lodash';
+
 import createScrollHelper from '../../../helpers/dragScrollHelper';
 
 /* @ngInject */
@@ -12,14 +13,15 @@ function LabelsController(
     labelModal,
     labelsModel,
     networkActivityTracker,
-    notification
+    notification,
+    translator
 ) {
     const { on, unsubscribe } = dispatchers();
 
-    const I18N = {
+    const I18N = translator(() => ({
         labelUpdated: gettextCatalog.getString('Label updated', null, 'Success'),
         folderUpdated: gettextCatalog.getString('Folder updated', null, 'Success')
-    };
+    }));
 
     const changeNotify = (event, { data: { id, status } }) => {
         const { Name, Color, Display, Exclusive } = _.find($scope.labels, { ID: id });
@@ -60,20 +62,21 @@ function LabelsController(
 
     $scope.$on('$destroy', unsubscribe);
 
-    function openLabelModal(label) {
+    function openLabelModal(label, mode) {
         labelModal.activate({
             params: {
                 label,
                 onSuccess() {
+                    if (mode === 'edit') {
+                        return;
+                    }
+
                     // Auto Scroll to the latest item
                     const id = setTimeout(() => {
                         const $li = document.querySelector('.labelsState-item:last-child');
                         $li && $li.scrollIntoView();
                         clearTimeout(id);
                     }, 500);
-                },
-                close() {
-                    labelModal.deactivate();
                 }
             }
         });
@@ -83,14 +86,14 @@ function LabelsController(
      * Open modal to create a new label
      */
     $scope.createLabel = () => {
-        openLabelModal({ Exclusive: 0, Notify: 1 });
+        openLabelModal({ Exclusive: 0 });
     };
 
     /**
      * Open modal to create a new folder
      */
     $scope.createFolder = () => {
-        openLabelModal({ Exclusive: 1, Notify: 0 });
+        openLabelModal({ Exclusive: 1 });
     };
 
     /**
@@ -98,7 +101,7 @@ function LabelsController(
      * @param {Object} label
      */
     $scope.editLabel = (label) => {
-        openLabelModal(label);
+        openLabelModal(label, 'edit');
     };
 
     $scope.sortLabels = () => {

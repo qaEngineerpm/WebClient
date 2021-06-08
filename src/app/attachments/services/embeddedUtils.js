@@ -4,8 +4,7 @@ import { toUnsignedString, ucFirst } from '../../../helpers/string';
 import transformEscape from '../../message/helpers/transformEscape';
 
 /* @ngInject */
-function embeddedUtils(attachmentFileFormat, tools) {
-    const DIV = document.createElement('DIV');
+function embeddedUtils(attachmentFileFormat, tools, cacheBase64) {
     const REGEXP_CID_START = /^cid:/g;
 
     /**
@@ -33,7 +32,14 @@ function embeddedUtils(attachmentFileFormat, tools) {
      * @param {String} content
      * @return {Node} Empty DIV
      */
-    const getBodyParser = (content = '') => transformEscape(DIV, { content, action: '', isDocument: false });
+    const getBodyParser = (content = '', activeCache = false) => {
+        return transformEscape(content, {
+            action: '',
+            activeCache,
+            isDocument: false,
+            cache: cacheBase64
+        });
+    };
 
     /**
      * Removes enclosing quotes ("", '', &lt;&gt;) from a string
@@ -73,6 +79,10 @@ function embeddedUtils(attachmentFileFormat, tools) {
      * @return {Array}
      */
     const findEmbedded = (cid, testDiv) => {
+        // If cid is an empty string, it can give a false positive
+        if (!cid) {
+            return [];
+        }
         const selector = [
             `img[src="${cid}"]`,
             `img[src="cid:${cid}"]`,
@@ -91,7 +101,7 @@ function embeddedUtils(attachmentFileFormat, tools) {
      * @return {Boolean}
      */
     const isEmbedded = ({ Headers = {}, MIMEType = '' }, body = '') => {
-        const testDiv = getBodyParser(body);
+        const testDiv = body ? getBodyParser(body) : document.createElement('DIV');
         const cid = readCID(Headers);
         const nodes = findEmbedded(cid, testDiv);
 

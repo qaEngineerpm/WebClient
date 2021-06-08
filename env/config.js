@@ -2,7 +2,6 @@ const extend = require('lodash/extend');
 const { execSync } = require('child_process');
 const argv = require('minimist')(process.argv.slice(2));
 const CONFIG_DEFAULT = require('./configDefault');
-const i18nLoader = require('../tasks/translationsLoader');
 
 const {
     STATS_CONFIG,
@@ -11,6 +10,7 @@ const {
     API_TARGETS,
     AUTOPREFIXER_CONFIG,
     SENTRY_CONFIG,
+    SECURED_IFRAME,
     TOR_URL
 } = require('./config.constants');
 
@@ -71,10 +71,6 @@ const getDefaultApiTarget = (defaultType = 'dev') => {
             return type;
         }
 
-        if (/red|alpha/.test(argv.branch || '')) {
-            return 'dev';
-        }
-
         return 'build';
     }
 
@@ -100,14 +96,6 @@ const apiUrl = (type = getDefaultApiTarget(), branch = '') => {
     return API_TARGETS[type] || API_TARGETS.dev;
 };
 
-const buildHost = () => {
-    if (isTorBranch()) {
-        return TOR_URL;
-    }
-    const host = isProdBranch() ? API_TARGETS.prod : process.env.NODE_ENV_API || apiUrl();
-    return host.replace(/\api$/, '');
-};
-
 /**
  * Get correct sentry UR/releaseL config for the current env
  * release can be undefined if we don't have a release available
@@ -115,9 +103,9 @@ const buildHost = () => {
  * - on deploy it's based on the branch name
  * @return {String}
  */
-const sentryConfig = () => {
+const sentryConfig = (branch) => {
     if (process.env.NODE_ENV === 'dist') {
-        const env = typeofBranch(argv.branch);
+        const env = typeofBranch(branch || argv.branch);
         process.env.NODE_ENV_SENTRY = env;
 
         // For production the release is the version else the hash where we ran the build
@@ -132,47 +120,58 @@ const sentryConfig = () => {
 };
 
 const getHostURL = (encoded) => {
-    const url = '/assets/host.png';
+    const url = `/assets/host.png`;
 
     if (encoded) {
-        const encoder = (input) => `%${input.charCodeAt(0).toString(16)}`;
-        return url
-            .split('/')
-            .map((chunk) => {
-                if (chunk === '/') {
-                    return chunk;
-                }
-                return chunk
-                    .split('')
-                    .map(encoder)
-                    .join('');
-            })
-            .join('/');
+        const encoder = (input) => (input !== ':' ? `%${input.charCodeAt(0).toString(16)}` : ':');
+        return url.split('/').reduce((acc, chunk, i) => {
+            if (!chunk) {
+                return acc;
+            }
+
+            const val = chunk
+                .split('')
+                .map(encoder)
+                .join('');
+
+            return `${acc}/${val}`;
+        }, '');
     }
     return url;
 };
 
-const getConfig = (env = process.env.NODE_ENV) => {
-    const CONFIG = extend({}, CONFIG_DEFAULT, {
+const getEnvDeploy = ({ env = process.env.NODE_ENV, config = true } = {}) => {
+    const opt = {
         debug: env === 'dist' ? false : 'debug-app' in argv ? argv['debug-app'] : true,
+        securedIframe: SECURED_IFRAME[argv.api],
         apiUrl: apiUrl(argv.api, argv.branch),
-        sentry: sentryConfig(),
         app_version: argv['app-version'] || CONFIG_DEFAULT.app_version,
         api_version: `${argv['api-version'] || CONFIG_DEFAULT.api_version}`,
-        commit: getBuildCommit(),
         articleLink: argv.article || CONFIG_DEFAULT.articleLink,
         changelogPath: env === 'dist' ? CONFIG_DEFAULT.changelogPath : 'changelog.tpl.html',
-        statsConfig: getStatsConfig(argv.branch)
-    });
-    return extend({ CONFIG }, { branch: argv.branch });
+        statsConfig: getStatsConfig(argv.branch),
+        sentry: sentryConfig()
+    };
+
+    if (!config) {
+        opt.branch = argv.branch;
+    }
+    return opt;
 };
+
+const getConfig = (env = process.env.NODE_ENV, branch) => ({
+    ...CONFIG_DEFAULT,
+    ...getEnvDeploy(),
+    sentry: sentryConfig(branch),
+    commit: getBuildCommit()
+});
 
 module.exports = {
     AUTOPREFIXER_CONFIG,
     getHostURL,
     getConfig,
     isDistRelease,
-    getI18nMatchFile: i18nLoader.getI18nMatchFile,
+    getEnvDeploy,
     getStatsConfig,
     argv,
     getEnv,

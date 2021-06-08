@@ -20,9 +20,10 @@ function sendMessage(
     cache,
     attachmentApi,
     SignatureVerifier,
-    recipientsFormator
+    recipientsFormator,
+    translator
 ) {
-    const I18N = {
+    const I18N = translator(() => ({
         SEND_SUCCESS: gettextCatalog.getString('Message sent', null, 'Send message'),
         EXPIRE_ERROR: gettextCatalog.getString(
             'Expiring emails to non-ProtonMail recipients require a message password to be set. For more information, {{link}}click here',
@@ -31,7 +32,7 @@ function sendMessage(
             },
             'Send message'
         )
-    };
+    }));
     const { dispatcher } = dispatchers(['actionMessage', 'composer.update', 'message.open']);
     const dispatchMessageAction = (message) => dispatcher.actionMessage('update', message);
 
@@ -39,7 +40,9 @@ function sendMessage(
         message.encrypting = true;
         dispatchMessageAction(message);
         parameters.id = message.ID;
-        parameters.ExpirationTime = message.ExpirationTime;
+        if (message.ExpiresIn) {
+            parameters.ExpiresIn = message.ExpiresIn;
+        }
 
         // remove all the data sources
         if (!message.isPlainText()) {

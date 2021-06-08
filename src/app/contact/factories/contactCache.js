@@ -13,7 +13,8 @@ function contactCache(
     Contact,
     contactDownloader,
     contactEmails,
-    contactImporter
+    contactImporter,
+    AppModel
 ) {
     const CONTACT_STATES = ['secured.contacts'];
     const CACHE = {
@@ -27,7 +28,9 @@ function contactCache(
     };
 
     const { dispatcher, on } = dispatchers(['contacts']);
-    const getItem = (ID) => _.find(CACHE.contacts, { ID });
+    const getItem = (ID) => {
+        return (CACHE.contacts.map.all || {})[ID] || _.find(CACHE.contacts, { ID });
+    };
     const findIndex = (ID) => _.findIndex(CACHE.contacts, { ID });
     const emit = (contact, data = {}) => {
         dispatcher.contacts('contactsUpdated', {
@@ -157,7 +160,7 @@ function contactCache(
             (acc, contact) => {
                 contact.Emails = MAP_EMAILS[contact.ID] || [];
                 contact.emails = contact.Emails.map(({ Email = '' }) => Email).join(', ');
-                acc.all[contact.ID] = { ...contact };
+                acc.all[contact.ID] = contact;
                 acc.list.push(acc.all[contact.ID]);
                 return acc;
             },
@@ -173,8 +176,8 @@ function contactCache(
     }
 
     /*
-         * Clear the contacts array and reset Hydrated
-         */
+     * Clear the contacts array and reset Hydrated
+     */
     function clear() {
         CACHE.contacts.length = 0;
         CACHE.hydrated = false;
@@ -272,6 +275,7 @@ function contactCache(
             CACHE.map.all[id] && (CACHE.map.all[id].selected = isChecked);
         });
         sync([], 'selected');
+        AppModel.set('numberElementChecked', CACHE.map.selected.length);
     }
 
     function contactEvents({ events = [] }) {
@@ -281,6 +285,12 @@ function contactCache(
         sync(todo.create);
         todo.update.forEach((item) => refreshContactEmails(item, false));
         emit(undefined, { todo });
+    }
+
+    function unSelectOnStateChange({ name }) {
+        if (!CONTACT_STATES.includes(name)) {
+            selectContacts({ isChecked: false });
+        }
     }
 
     on('contacts', (event, { type, data = {} }) => {
@@ -294,16 +304,10 @@ function contactCache(
         type === 'searchingContact' && searchingContact(data);
     });
 
-    on('$stateChangeSuccess', (event, toState) => {
-        if (!CONTACT_STATES.includes(toState.name)) {
-            selectContacts({ isChecked: false });
-        }
-    });
-
     on('logout', () => {
         clear();
     });
 
-    return { hydrate, isHydrated, clear, get, total, paginate, load, getItem };
+    return { hydrate, isHydrated, clear, get, total, paginate, load, getItem, unSelectOnStateChange };
 }
 export default contactCache;

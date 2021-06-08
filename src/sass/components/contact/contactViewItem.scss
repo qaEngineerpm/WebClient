@@ -1,5 +1,3 @@
-.contactViewItem-container, .contactViewItem-container * { box-sizing: border-box }
-
 $mapFields: (
     tel: phone,
     fn: user,
@@ -39,8 +37,8 @@ $mapFields: (
     color: darken($primary, 10);
 }
 
-.contactViewItem-container a:focus,
-.contactViewItem-container a:hover {
+.contactViewItem-container a:not(.toolbarDesktop-select-folder):focus,
+.contactViewItem-container a:not(.toolbarDesktop-select-folder):hover {
     text-decoration: underline
 }
 
@@ -110,8 +108,4 @@ $mapFields: (
     display: flex;
     align-items: center;
     margin-left: auto;
-}
-
-.contactViewItem-actions-dropdownGroup .dropdownGroups-item + .dropdownGroups-item {
-    margin-top: 1rem;
 }

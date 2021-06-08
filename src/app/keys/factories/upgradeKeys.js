@@ -1,10 +1,19 @@
-import { decryptPrivateKey, encodeUtf8Base64, reformatKey } from 'pmcrypto';
-import _ from 'lodash';
+import { decryptPrivateKey, reformatKey } from 'pmcrypto';
+import { generateKeySalt, computeKeyPassword } from 'pm-srp';
 
-import { PAID_ADMIN_ROLE, MAILBOX_PASSWORD_KEY } from '../../constants';
+import { MAIN_KEY, PAID_ADMIN_ROLE } from '../../constants';
 
 /* @ngInject */
-function upgradeKeys($log, $injector, gettextCatalog, Key, organizationApi, passwords, secureSessionStorage) {
+function upgradeKeys(
+    $log,
+    $injector,
+    gettextCatalog,
+    Key,
+    organizationApi,
+    authenticationStore,
+    userSettingsModel,
+    keysModel
+) {
     /**
      * Reformat organization keys
      * @param  {String} password
@@ -12,91 +21,81 @@ function upgradeKeys($log, $injector, gettextCatalog, Key, organizationApi, pass
      * @param  {Object} user
      * @return {Promise}
      */
-    function manageOrganizationKeys(password = '', oldSaltedPassword = '', user = {}) {
-        if (user.Role === PAID_ADMIN_ROLE) {
-            // Get organization key
-            return organizationApi.getKeys().then(({ data = {} } = {}) => {
-                const encryptPrivateKey = data.PrivateKey;
-                const [{ Email }] = $injector.get('addressesModel').getByUser(user) || {};
-                return decryptPrivateKey(encryptPrivateKey, oldSaltedPassword).then(
-                    (pkg) => reformatKey(pkg, Email, password),
-                    () => 0
-                );
-            });
+    async function getReformattedOrganizationKey(password = '', oldSaltedPassword = '', user = {}) {
+        if (user.Role !== PAID_ADMIN_ROLE) {
+            return;
         }
-        return Promise.resolve(0);
+
+        const { PrivateKey } = await organizationApi.getKeys();
+        const [{ Email: email }] = $injector.get('addressesModel').getByUser(user) || {};
+
+        try {
+            const decryptedPrivateKey = await decryptPrivateKey(PrivateKey, oldSaltedPassword);
+            const { privateKeyArmored } = await reformatKey({
+                privateKey: decryptedPrivateKey,
+                userIds: [{ name: email, email }],
+                passphrase: password
+            });
+            return privateKeyArmored;
+        } catch (e) {
+            // Ignore organization key if it can not be decrypted
+        }
     }
 
-    const collectUserKeys = ({ Keys = [] } = {}) => {
+    const getDecryptedKeys = (keys) => keys.filter(({ pkg }) => !!pkg);
+
+    const getUserKeys = () => {
         const addresses = $injector.get('addressesModel').get();
+        const userKeys = keysModel.getAllKeys(MAIN_KEY);
+        const decryptedUserKeys = getDecryptedKeys(userKeys);
+        const [primaryAddress] = addresses;
 
-        return Keys.reduce(
-            (acc, key) => {
-                acc.keys.push(key);
-                let foundKey = null;
-                addresses.forEach((address) => {
-                    foundKey = _.find(address.Keys, { Fingerprint: key.Fingerprint });
-                    if (foundKey) {
-                        acc.emails[key.ID] = address.Email;
-                    }
-                });
-
-                if (!foundKey) {
-                    acc.emails[key.ID] = addresses[0].Email;
-                }
-                return acc;
-            },
-            { keys: [], emails: {} }
-        );
+        return decryptedUserKeys.map((key) => {
+            return {
+                address: primaryAddress,
+                keys: [key]
+            };
+        });
     };
 
-    const collectAddressKeys = () => {
+    const getAddressKeys = () => {
         const addresses = $injector.get('addressesModel').get();
-        return addresses.reduce(
-            (acc, { Keys = [], Email } = {}) => {
-                Keys.forEach((key) => {
-                    acc.keys.push(key);
-                    acc.emails[key.ID] = Email;
-                });
-                return acc;
-            },
-            { keys: [], emails: {} }
-        );
+        return addresses
+            .map((address) => ({
+                address,
+                keys: getDecryptedKeys(keysModel.getAllKeys(address.ID))
+            }))
+            .filter(({ keys }) => keys.length > 0);
     };
 
     /**
      * Reformat user keys
      * @param  {String} password
-     * @param  {String} oldSaltedPassword
-     * @param  {Object} user
-     * @return {Promise}
+     * @return {Array<Promise>}
      */
-    function manageUserKeys(password = '', oldSaltedPassword = '', user = {}) {
-        const keysUser = collectUserKeys(user);
-        const keysAddresses = collectAddressKeys();
-        const inputKeys = [].concat(keysUser.keys, keysAddresses.keys);
-        const emailAddresses = _.extend({}, keysUser.emails, keysAddresses.emails);
+    function getReformattedUserAndAddressKeys(password = '') {
+        const addressKeys = getAddressKeys();
+        const userKeys = getUserKeys();
 
-        // Reformat all keys, if they can be decrypted
-        const promises = inputKeys.map(({ PrivateKey, ID }) => {
-            // Decrypt private key with the old mailbox password
-            return decryptPrivateKey(PrivateKey, oldSaltedPassword).then((pkg) => ({ ID, pkg }));
+        const promises = [...addressKeys, ...userKeys].flatMap(({ address, keys }) => {
+            const { Email: email } = address;
+
+            return keys.map(async ({ key, pkg }) => {
+                const { privateKeyArmored } = await reformatKey({
+                    privateKey: pkg,
+                    userIds: [{ name: email, email }],
+                    passphrase: password
+                });
+
+                return {
+                    ID: key.ID,
+                    PrivateKey: privateKeyArmored
+                };
+            });
         });
 
-        return promises.map((promise) => {
-            return (
-                promise
-                    // Encrypt the key with the new mailbox password
-                    .then(({ ID, pkg }) => {
-                        return reformatKey(pkg, emailAddresses[ID], password).then((PrivateKey) => ({
-                            ID,
-                            PrivateKey
-                        }));
-                    })
-                    // Cannot decrypt, return 0 (not an error)
-                    .then(null, () => 0)
-            );
-        });
+        // Reformat all keys that can be decrypted with the new password
+        return Promise.all(promises);
     }
     /**
      * Send newly reformatted keys to backend
@@ -107,47 +106,40 @@ function upgradeKeys($log, $injector, gettextCatalog, Key, organizationApi, pass
      * @return {Promise}
      */
     function sendNewKeys({ keys = [], keySalt = '', organizationKey = 0, loginPassword = '' }) {
-        const keysFiltered = keys.filter((key) => key !== 0);
+        const payload = { KeySalt: keySalt, Keys: keys };
 
-        if (keysFiltered.length === 0) {
-            throw new Error(gettextCatalog.getString('No keys to update', null, 'Error'));
-        }
-
-        const payload = { KeySalt: keySalt, Keys: keysFiltered };
-        if (organizationKey !== 0) {
+        if (organizationKey) {
             payload.OrganizationKey = organizationKey;
         }
 
         return Key.upgrade(payload, loginPassword);
     }
 
-    return ({ mailboxPassword = '', oldSaltedPassword = '', user = {} }) => {
-        let passwordComputed = '';
-        const keySalt = passwords.generateKeySalt();
-        const loginPassword = user.PasswordMode === 1 ? mailboxPassword : '';
+    return async ({ plainMailboxPass = '', oldSaltedPassword = '', user = {} }) => {
+        const keySalt = generateKeySalt();
+        const userPasswordMode = userSettingsModel.get('PasswordMode');
+        const loginPassword = userPasswordMode === 1 ? plainMailboxPass : '';
 
-        return passwords
-            .computeKeyPassword(mailboxPassword, keySalt)
-            .then((password) => {
-                passwordComputed = password;
-                const collection = manageUserKeys(passwordComputed, oldSaltedPassword, user);
-                const promises = [].concat(
-                    manageOrganizationKeys(passwordComputed, oldSaltedPassword, user),
-                    collection
-                );
-                return Promise.all(promises);
-            })
-            .then(([organizationKey, ...keys]) =>
-                sendNewKeys({
-                    keys,
-                    keySalt,
-                    organizationKey,
-                    loginPassword
-                })
-            )
-            .then(() => {
-                secureSessionStorage.setItem(MAILBOX_PASSWORD_KEY, encodeUtf8Base64(passwordComputed));
-            });
+        const newMailboxPassword = await computeKeyPassword(plainMailboxPass, keySalt);
+
+        const [organizationKey, addressAndUserKeys] = await Promise.all([
+            getReformattedOrganizationKey(newMailboxPassword, oldSaltedPassword, user),
+            getReformattedUserAndAddressKeys(newMailboxPassword)
+        ]);
+
+        // If no keys. Should never end up here.
+        if (!organizationKey && !addressAndUserKeys.length) {
+            return;
+        }
+
+        await sendNewKeys({
+            keys: addressAndUserKeys,
+            keySalt,
+            organizationKey,
+            loginPassword
+        });
+
+        authenticationStore.setPassword(newMailboxPassword);
     };
 }
 export default upgradeKeys;

@@ -67,6 +67,8 @@ function main {
             vendor.js
             vendorLazy.js
             vendorLazy2.js
+            vendorEncoder.js
+            setupPmcrypto.js
             index.js
             routes.js
             config.js

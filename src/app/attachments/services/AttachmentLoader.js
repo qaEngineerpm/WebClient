@@ -2,7 +2,6 @@ import {
     binaryStringToArray,
     concatArrays,
     decodeBase64,
-    decodeUtf8Base64,
     decryptMessage,
     decryptSessionKey,
     encryptMessage,
@@ -21,15 +20,16 @@ function AttachmentLoader(
     $state,
     $stateParams,
     Eo,
-    secureSessionStorage,
+    eoStore,
     attachmentApi,
     SignatureVerifier,
-    gettextCatalog
+    gettextCatalog,
+    translator
 ) {
-    const I18N = {
+    const I18N = translator(() => ({
         encrypt: gettextCatalog.getString('Failed to encrypt attachment. Please try again.', null, 'Error'),
         missing: gettextCatalog.getString('You did not provide a file.', null, 'Error')
-    };
+    }));
 
     const { dispatcher } = dispatchers(['attachmentLoader']);
     const cache = $cacheFactory('attachments');
@@ -55,7 +55,7 @@ function AttachmentLoader(
      */
     const getRequest = ({ ID } = {}) => {
         if (isOutside()) {
-            const decryptedToken = secureSessionStorage.getItem('proton:decrypted_token');
+            const decryptedToken = eoStore.getToken();
             const token = $stateParams.tag;
             return Eo.attachment(decryptedToken, token, ID);
         }
@@ -148,7 +148,7 @@ function AttachmentLoader(
         const options = { message: await getMessage(keyPackets) };
 
         if (isOutside()) {
-            options.passwords = [decodeUtf8Base64(secureSessionStorage.getItem('proton:encrypted_password'))];
+            options.passwords = [eoStore.getPassword()];
         } else {
             options.privateKeys = keysModel.getPrivateKeys(message.AddressID);
         }

@@ -1,4 +1,5 @@
 import { decryptMessage, decryptPrivateKey, encryptPrivateKey, getMessage } from 'pmcrypto';
+import { computeKeyPassword, generateKeySalt } from 'pm-srp';
 
 import { PAID_ADMIN_ROLE } from '../../constants';
 
@@ -11,7 +12,6 @@ function changeMailboxPassword(
     Key,
     networkActivityTracker,
     organizationApi,
-    passwords,
     User
 ) {
     /**
@@ -21,9 +21,10 @@ function changeMailboxPassword(
      * @return {Promise}
      */
     function getUser(newMailPwd = '', keySalt = '') {
-        return Promise.all([passwords.computeKeyPassword(newMailPwd, keySalt), User.get()]).then(
-            ([password, user = {}]) => ({ password, user })
-        );
+        return Promise.all([computeKeyPassword(newMailPwd, keySalt), User.get()]).then(([password, user = {}]) => ({
+            password,
+            user
+        }));
     }
 
     /**
@@ -32,22 +33,19 @@ function changeMailboxPassword(
      * @param  {Object} user
      * @return {Promise}
      */
-    function manageOrganizationKeys(password = '', oldMailPwd = '', user = {}) {
-        if (user.Role === PAID_ADMIN_ROLE) {
-            // Get organization key
-            return organizationApi.getKeys().then(({ data = {} } = {}) => {
-                const privateKey = data.PrivateKey;
-
-                // Decrypt organization private key with the old mailbox password (current)
-                // then encrypt private key with the new mailbox password
-                // return 0 on failure to decrypt, other failures are fatal
-                return decryptPrivateKey(privateKey, oldMailPwd).then(
-                    (pkg) => encryptPrivateKey(pkg, password),
-                    () => 0
-                );
-            });
+    async function manageOrganizationKeys(password = '', oldMailPwd = '', user = {}) {
+        if (user.Role !== PAID_ADMIN_ROLE) {
+            return 0;
         }
-        return Promise.resolve(0);
+
+        const { PrivateKey } = await organizationApi.getKeys();
+
+        try {
+            const decryptedPrivateKey = await decryptPrivateKey(PrivateKey, oldMailPwd);
+            return encryptPrivateKey(decryptedPrivateKey, password);
+        } catch (e) {
+            return 0;
+        }
     }
 
     function manageUserKeys(password = '', oldMailPwd = '', user = {}) {
@@ -113,7 +111,7 @@ function changeMailboxPassword(
 
     return ({ newPassword = '', onePassword = false }) => {
         const oldMailPwd = authentication.getPassword();
-        const keySalt = passwords.generateKeySalt();
+        const keySalt = generateKeySalt();
         const newLoginPassword = onePassword ? newPassword : '';
         let passwordComputed;
         const promise = getUser(newPassword, keySalt)
@@ -136,7 +134,7 @@ function changeMailboxPassword(
                     newLoginPassword
                 })
             )
-            .then(() => authentication.savePassword(passwordComputed));
+            .then(() => authentication.setPassword(passwordComputed));
         networkActivityTracker.track(promise);
         return promise;
     };

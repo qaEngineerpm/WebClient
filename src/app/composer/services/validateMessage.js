@@ -1,11 +1,4 @@
-import {
-    MAX_TITLE_LENGTH,
-    UNPAID_STATE,
-    REGEX_EMAIL,
-    MIME_TYPES,
-    PACKAGE_TYPE,
-    MESSAGE_MAX_RECIPIENTS
-} from '../../constants';
+import { MAX_TITLE_LENGTH, UNPAID_STATE, REGEX_EMAIL, MIME_TYPES, PACKAGE_TYPE } from '../../constants';
 
 import { normalizeRecipients, getRecipients } from '../../../helpers/message';
 
@@ -25,9 +18,10 @@ function validateMessage(
     notification,
     addressWithoutKeys,
     sendPreferences,
-    storageWarning
+    storageWarning,
+    translator
 ) {
-    const I18N = {
+    const I18N = translator(() => ({
         SEND_ANYWAY: gettextCatalog.getString('Send anyway', null, 'Action'),
         STILL_UPLOADING: gettextCatalog.getString(
             'Wait for attachment to finish uploading or cancel upload.',
@@ -49,13 +43,6 @@ function validateMessage(
             { size: MAX_TITLE_LENGTH },
             'Error'
         ),
-        maxRecipients(total) {
-            return gettextCatalog.getString(
-                'You have {{total}} recipients. The maximum number is {{limit}}.',
-                { total, limit: MESSAGE_MAX_RECIPIENTS },
-                'Error'
-            );
-        },
         NO_SUBJECT_TITLE: gettextCatalog.getString('No subject', null, 'Title'),
         NO_SUBJECT_MESSAGE: gettextCatalog.getString('No subject, send anyway?', null, 'Info'),
         ERROR_ADDRESSES_INFO_PRIVATE: gettextCatalog.getString('You can generate your keys here', null, 'Error'),
@@ -75,7 +62,7 @@ function validateMessage(
             null,
             'Info'
         )
-    };
+    }));
 
     const cleanEmails = (message) => {
         message.ToList.concat(message.CCList, message.BCCList).forEach((item) => {
@@ -109,11 +96,6 @@ function validateMessage(
 
         if (emailStats.invalid.length) {
             throw new Error(I18N.invalidEmails(emailStats.invalid.join(',')));
-        }
-
-        // MAX 100 to, cc, bcc
-        if (emailStats.total > MESSAGE_MAX_RECIPIENTS) {
-            throw new Error(I18N.maxRecipients(emailStats.total));
         }
 
         if (!emailStats.total) {
@@ -176,7 +158,7 @@ function validateMessage(
     }
 
     /**
-     * Check if the message has the requirement if ExpirationTime is defined
+     * Check if the message has the requirement if ExpiresIn is defined
      * @param  {Object} message
      * @param {Array} emails list of email address (string)
      * @return {Promise}
@@ -196,7 +178,7 @@ function validateMessage(
         // Contacts which include encrypted PGP sending.
         const pgp = filterTypes(EXTERNAL_SCHEMES, true);
 
-        if (message.ExpirationTime && (pgp.length || clear.length)) {
+        if (message.ExpiresIn && (pgp.length || clear.length)) {
             return confirmExpiration({ pgp, clear });
         }
     }

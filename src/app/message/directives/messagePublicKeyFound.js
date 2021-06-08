@@ -1,6 +1,6 @@
 import { keyInfo } from 'pmcrypto';
 
-import keyAlgorithm from '../../keys/helper/keyAlgorithm';
+import { describe } from '../../../helpers/keyAlgorithm';
 import { isInternal } from '../../../helpers/message';
 
 /* @ngInject */
@@ -11,12 +11,14 @@ function messagePublicKeyFound(
     attachedPublicKey,
     gettextCatalog,
     notification,
-    eventManager
+    eventManager,
+    translator
 ) {
-    const I18N = {
+
+    const I18N = translator(() => ({
         SUCCES_MESSAGE: gettextCatalog.getString('Public Key trusted', null, 'Success'),
         ERROR_MESSAGE: gettextCatalog.getString('Error while adding the public key to the contacts', null, 'Error')
-    };
+    }));
 
     return {
         replace: true,
@@ -35,7 +37,7 @@ function messagePublicKeyFound(
                     if (addresses.length === 0) {
                         return;
                     }
-                    keyInfo.algType = keyAlgorithm.describe(keyInfo);
+                    keyInfo.algType = describe(keyInfo);
                     trustPublicKeyModal.activate({
                         params: {
                             addresses,

@@ -18,15 +18,19 @@ function attachmentModel(
     composerRequestModel,
     attachmentDownloader,
     gettextCatalog,
-    SignatureVerifier
+    SignatureVerifier,
+    translator
 ) {
     const MAX_KEY_SIZE = 50 * 1024;
     const queueMessage = {};
     let MAP_ATTACHMENTS = {};
     const EVENT_NAME = 'attachment.upload';
-    const I18N = {
+
+    const I18N = translator(() => ({
+        ERROR_UPLOAD: gettextCatalog.getString('Error during file upload', null, 'Compose message'),
+        ERROR_ENCRYPT: gettextCatalog.getString('Error encrypting attachment', null, 'Compose message'),
         IMAGE: gettextCatalog.getString('Image', null, 'Title')
-    };
+    }));
 
     const { on, dispatcher } = dispatchers([EVENT_NAME, 'actionMessage']);
     const dispatch = (type, data) => dispatcher[EVENT_NAME](type, data);
@@ -200,34 +204,35 @@ function attachmentModel(
         message.encryptingAttachment = true;
         dispatchMessageAction(message);
 
-        const promise = Promise.all(promises)
-            .then((upload) => upload.filter(Boolean)) // will be undefined for aborted request
-            .then((upload) => {
-                message.uploading = 0;
-                message.encryptingAttachment = false;
-                dispatchMessageAction(message);
+        const callback = () =>
+            Promise.all(promises)
+                .then((upload) => upload.filter(Boolean)) // will be undefined for aborted request
+                .then((upload) => {
+                    message.uploading = 0;
+                    message.encryptingAttachment = false;
+                    dispatchMessageAction(message);
 
-                // Create embedded and replace theses files from the upload list
-                const embeddedMap = addEmbedded(upload, message);
-                return _.map(upload, (config) => {
-                    return embeddedMap[config.attachment.ID] || config;
+                    // Create embedded and replace theses files from the upload list
+                    const embeddedMap = addEmbedded(upload, message);
+                    return _.map(upload, (config) => {
+                        return embeddedMap[config.attachment.ID] || config;
+                    });
+                })
+                .then((upload) => {
+                    message.addAttachments(upload.map(({ attachment }) => attachment));
+                    updateMapAttachments(upload);
+
+                    if (triggerEvent && upload.length) {
+                        dispatch('upload.success', { upload, message, messageID: message.ID });
+                    }
+                    return upload;
+                })
+                .catch((err) => {
+                    dispatchMessageAction(message);
+                    throw err;
                 });
-            })
-            .then((upload) => {
-                message.addAttachments(upload.map(({ attachment }) => attachment));
-                updateMapAttachments(upload);
 
-                if (triggerEvent && upload.length) {
-                    dispatch('upload.success', { upload, message, messageID: message.ID });
-                }
-                return upload;
-            })
-            .catch((err) => {
-                dispatchMessageAction(message);
-                throw err;
-            });
-
-        composerRequestModel.save(message, promise);
+        const promise = composerRequestModel.add(message, callback);
         networkActivityTracker.track(promise);
         return promise;
     }
@@ -342,7 +347,7 @@ function attachmentModel(
      */
     async function sign(attachment, message) {
         // async because we need to use data twice :-)
-        const privateKeys = keysModel.getPrivateKeys(message.AddressID);
+        const privateKeys = keysModel.getPrivateKeys(message.AddressID)[0];
 
         const data = await AttachmentLoader.get(attachment, message);
         const { signature } = await signMessage({ data, privateKeys, armor: true, detached: true });
@@ -381,7 +386,7 @@ function attachmentModel(
             tempPacket.Inline = 1;
         }
 
-        const privateKeys = keysModel.getPrivateKeys(message.AddressID);
+        const privateKeys = keysModel.getPrivateKeys(message.AddressID)[0];
         message.attachmentsToggle = true;
 
         const doUpload = (packets) => {

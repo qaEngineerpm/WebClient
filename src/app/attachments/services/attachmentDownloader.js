@@ -14,11 +14,12 @@ function attachmentDownloader(
     notification,
     invalidSignature,
     SignatureVerifier,
-    confirmModal
+    confirmModal,
+    translator
 ) {
     const hasFileSaverSupported = isFileSaverSupported();
 
-    const I18N = {
+    const I18N = translator(() => ({
         OPEN_ATTACHMENT_ON_MOBILE: gettextCatalog.getString(
             'Please tap and hold on the attachment and select Open in New Tab.',
             null,
@@ -55,11 +56,11 @@ function attachmentDownloader(
             confirmText: gettextCatalog.getString('Download', null, 'Action')
         },
         ERROR_ZIP: gettextCatalog.getString('Cannot generate a zip of your attachments.', null, 'Error')
-    };
+    }));
 
     const isNotSupported = (e) => {
         // Cf Safari
-        if (e.target.href && e.target.href.search(/^data.*/) !== -1) {
+        if ((e.target.href && e.target.href.search(/^data.*/) !== -1) || !hasFileSaverSupported) {
             alert(
                 `${I18N.NOT_SUPPORTED} ${isMobile() ? I18N.OPEN_ATTACHMENT_ON_MOBILE : I18N.OPEN_ATTACHMENT_ON_DESKTOP}`
             );

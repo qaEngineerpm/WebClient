@@ -11,9 +11,10 @@ function deleteKeyProcess(
     Key,
     keysModel,
     notification,
+    translator,
     networkActivityTracker
 ) {
-    const I18N = {
+    const I18N = translator(() => ({
         WARNING_TITLE: gettextCatalog.getString('Warning', null, 'Title'),
         WARNING_MESSAGE: gettextCatalog.getString(
             `This feature is intended for advanced users only!
@@ -32,22 +33,20 @@ function deleteKeyProcess(
         ),
         EXPORT_ACTION: gettextCatalog.getString('Export', null, 'Action'),
         SUCCES_NOTIFICATION: gettextCatalog.getString('Key deleted', null, 'Success')
-    };
+    }));
     /**
      * Warns the user of the dangers of deleting a key. Allows the user to cancel the process.
      * @return {Promise}
      */
     const warnUser = () =>
-        new Promise((resolve, reject) => {
+        new Promise((resolve) => {
             confirmModal.activate({
                 params: {
                     title: I18N.WARNING_TITLE,
                     message: I18N.WARNING_MESSAGE,
+                    hookClose: (mode) => resolve(mode === 'confirm'),
                     confirm() {
-                        confirmModal.deactivate().then(resolve);
-                    },
-                    cancel() {
-                        confirmModal.deactivate().then(reject);
+                        confirmModal.deactivate('confirm');
                     }
                 }
             });
@@ -109,13 +108,15 @@ function deleteKeyProcess(
     /**
      * Deletes the specified key, triggering the eventmanager and notifying the user of the result.
      * @param {Object} Key An object describing the key we want to delete
+     * @param {Object} Key.ID ID of the key
+     * @param {Object} Key.PrivateKey Armored encrypted private key
      * @param {String} addressID
      * @return {Promise}
      */
-    const deleteKey = async ({ ID }, addressID) => {
+    const deleteKey = async ({ ID, PrivateKey }, addressID) => {
         const SignedKeyList = await keysModel.signedKeyList(addressID, {
             mode: 'remove',
-            keyID: ID
+            encryptedPrivateKey: PrivateKey
         });
         const promise = Key.remove(ID, { SignedKeyList })
             .then(eventManager.call)
@@ -129,9 +130,11 @@ function deleteKeyProcess(
      * @return {Promise}
      */
     const start = async ({ email, addressID }, keyInfo) => {
-        await warnUser();
-        keyInfo.decrypted && (await exportKey(email, keyInfo));
-        return deleteKey(keyInfo, addressID);
+        const confirm = await warnUser();
+        if (confirm) {
+            keyInfo.decrypted && (await exportKey(email, keyInfo));
+            return deleteKey(keyInfo, addressID);
+        }
     };
     return { start };
 }

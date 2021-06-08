@@ -1,18 +1,19 @@
 import { decryptPrivateKey, encryptPrivateKey } from 'pmcrypto';
+import { computeKeyPasswordWithFallback } from '../../../helpers/passwordsHelper';
 
 /* @ngInject */
 function activateOrganizationKeys(
     organizationApi,
     notification,
     authentication,
-    passwords,
     networkActivityTracker,
     gettextCatalog,
-    eventManager
+    eventManager,
+    translator
 ) {
-    const I18N = {
+    const I18N = translator(() => ({
         ERROR_PASSWORD: gettextCatalog.getString('Password incorrect. Please try again', null, 'Error')
-    };
+    }));
 
     function setup(context) {
         const encryptPrivateKeyHelper = (pkg) => {
@@ -26,7 +27,7 @@ function activateOrganizationKeys(
 
         const decryptPrivateKeyHelper = async (PrivateKey, KeySalt, passcode) => {
             try {
-                const keyPassword = await passwords.computeKeyPassword(passcode, KeySalt);
+                const keyPassword = await computeKeyPasswordWithFallback(passcode, KeySalt);
                 return decryptPrivateKey(PrivateKey, keyPassword);
             } catch (err) {
                 throw new Error(I18N.ERROR_PASSWORD);

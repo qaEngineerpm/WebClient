@@ -1,20 +1,19 @@
 import _ from 'lodash';
-import { decodeUtf8Base64 } from 'pmcrypto';
 
 import {
     PAID_ADMIN_ROLE,
     PAID_MEMBER_ROLE,
     PRODUCT_TYPE,
     INVITE_URL,
-    OAUTH_KEY,
     MAILBOX_IDENTIFIERS,
     CURRENCIES,
+    DEFAULT_CURRENCY,
+    DEFAULT_CYCLE,
     BILLING_CYCLE,
-    SIGNUP_PLANS,
-    BLACK_FRIDAY
+    SIGNUP_PLANS
 } from './constants';
-import { isDealEvent } from './blackFriday/helpers/blackFridayHelper';
 import { decrypt } from '../helpers/message';
+import { isIE11 } from '../helpers/browser';
 
 export default angular
     .module('proton.routes', ['ui.router', 'proton.authentication', 'proton.utils'])
@@ -51,28 +50,22 @@ export default angular
             // ------------
             .state('login', {
                 url: '/login',
+                onEnter(dropIE11ModalModal) {
+                    if (isIE11()) {
+                        dropIE11ModalModal.activate();
+                    }
+                },
                 views: {
                     'main@': {
                         templateUrl: require('../templates/layout/login.tpl.html')
                     },
                     'panel@login': {
-                        controller: 'LoginController',
-                        templateUrl: require('../templates/views/login.tpl.html')
+                        template: '<login-container></login-container>'
                     }
                 },
                 resolve: {
                     lang(i18nLoader) {
                         return i18nLoader.translate();
-                    }
-                }
-            })
-
-            .state('login.unlock', {
-                url: '/unlock',
-                views: {
-                    'panel@login': {
-                        controller: 'LoginController',
-                        templateUrl: require('../templates/views/unlock.tpl.html')
                     }
                 }
             })
@@ -101,17 +94,20 @@ export default angular
                 }
             })
 
+            .state('login.down', {
+                views: {
+                    'panel@login': {
+                        template: '<account-load-error></account-load-error>'
+                    }
+                }
+            })
+
             .state('login.sub', {
                 url: '/sub',
                 views: {
                     'panel@login': {
-                        controller: 'LoginController',
-                        templateUrl: require('../templates/views/unlock.tpl.html')
+                        template: '<login-sub-container></login-sub-container>'
                     }
-                },
-                onEnter(AppModel) {
-                    AppModel.set('isLoggedIn', true);
-                    AppModel.set('domoArigato', true);
                 }
             })
 
@@ -199,8 +195,8 @@ export default angular
                     inviteSelector: undefined, // set by invite
                     inviteToken: undefined, // set by invite
                     plan: null, // 'free' / 'plus' / 'visionary' / 'plus_vpnplus'
-                    billing: null, // 1 / 12
-                    currency: null, // 'CHF' / 'EUR' / 'USD'
+                    billing: `${DEFAULT_CYCLE}`, // 1 / 12
+                    currency: DEFAULT_CURRENCY, // 'CHF' / 'EUR' / 'USD'
                     coupon: null
                 },
                 views: {
@@ -217,7 +213,7 @@ export default angular
                         return i18nLoader.translate();
                     },
                     subscriptionInfo($stateParams) {
-                        const { currency, billing, plan, coupon: couponParam } = $stateParams;
+                        const { currency, billing, plan, coupon } = $stateParams;
                         const cycle = +billing;
 
                         const isValidCurrency = _.includes(CURRENCIES, currency);
@@ -228,17 +224,13 @@ export default angular
                             return;
                         }
 
-                        // Remove the black friday coupon if it's not yet time.
-                        const coupon =
-                            couponParam === BLACK_FRIDAY.COUPON_CODE ? isDealEvent() && couponParam : couponParam;
-
                         return { planNames: plan.split('_'), currency, cycle, coupon };
                     },
                     optionsHumanCheck(signupModel) {
                         return signupModel.getOptionsVerification();
                     },
                     domains(pmDomainModel) {
-                        return pmDomainModel.fetch();
+                        return pmDomainModel.fetch({ params: { Type: 'signup' } });
                     }
                 }
             })
@@ -254,20 +246,10 @@ export default angular
                         controller: 'SupportController',
                         templateUrl: require('../templates/layout/auth.tpl.html')
                     }
-                }
-            })
-
-            // Generic Message View Template
-            .state('support.message', {
-                url: '/message',
-                onEnter($state, $stateParams) {
-                    if (!$stateParams.error) {
-                        $state.go('login');
-                    }
                 },
-                views: {
-                    'panel@support': {
-                        template: '<support-message></support-message>'
+                resolve: {
+                    i18n(i18nLoader) {
+                        return i18nLoader.translate();
                     }
                 }
             })
@@ -297,8 +279,11 @@ export default angular
                     }
                 },
                 resolve: {
-                    lang(i18nLoader) {
-                        return i18nLoader.translate();
+                    app(lazyLoader, i18nLoader) {
+                        return lazyLoader
+                            .app()
+                            .then(i18nLoader.translate)
+                            .then(i18nLoader.localizeDate);
                     }
                 }
             })
@@ -306,7 +291,7 @@ export default angular
             .state('eo.unlock', {
                 url: '/eo/:tag',
                 resolve: {
-                    encryptedToken(Eo, $stateParams) {
+                    encryptedToken(app, Eo, $stateParams) {
                         // Can be null if the network is down
                         return Eo.token($stateParams.tag)
                             .then(({ data = {} } = {}) => data.Token)
@@ -326,16 +311,19 @@ export default angular
             .state('eo.message', {
                 url: '/eo/message/:tag',
                 resolve: {
-                    app(lazyLoader, i18nLoader) {
-                        return lazyLoader.app().then(i18nLoader.localizeDate);
-                    },
-                    messageData(app, $stateParams, $q, Eo, messageModel, secureSessionStorage) {
-                        const password = decodeUtf8Base64(secureSessionStorage.getItem('proton:encrypted_password'));
+                    messageData(app, $state, $stateParams, $q, Eo, messageModel, eoStore) {
+                        const tokenId = $stateParams.tag;
 
-                        return Eo.message(
-                            secureSessionStorage.getItem('proton:decrypted_token'),
-                            $stateParams.tag
-                        ).then(({ data = {} }) => {
+                        const decryptedToken = eoStore.getToken();
+                        const password = eoStore.getPassword();
+
+                        // Can happen when a user goes directly to this URL.
+                        if (!decryptedToken) {
+                            $state.go('eo.unlock', { tag: tokenId });
+                            return Promise.reject();
+                        }
+
+                        return Eo.message(decryptedToken, tokenId).then(({ data = {} }) => {
                             const message = data.Message;
                             const promises = _.reduce(
                                 message.Replies,
@@ -364,10 +352,17 @@ export default angular
             .state('eo.reply', {
                 url: '/eo/reply/:tag',
                 resolve: {
-                    messageData($stateParams, Eo, messageModel, secureSessionStorage) {
+                    messageData(app, $state, $stateParams, Eo, messageModel, eoStore) {
                         const tokenId = $stateParams.tag;
-                        const decryptedToken = secureSessionStorage.getItem('proton:decrypted_token');
-                        const password = decodeUtf8Base64(secureSessionStorage.getItem('proton:encrypted_password'));
+
+                        const decryptedToken = eoStore.getToken();
+                        const password = eoStore.getPassword();
+
+                        // Can happen when a user goes directly to this URL.
+                        if (!decryptedToken) {
+                            $state.go('eo.unlock', { tag: tokenId });
+                            return Promise.reject();
+                        }
 
                         return Eo.message(decryptedToken, tokenId).then((result) => {
                             const message = result.data.Message;
@@ -434,23 +429,11 @@ export default angular
                         return lazyLoader.app();
                     },
                     // Contains also labels and contacts
-                    user(app, authentication, $http, secureSessionStorage, i18nLoader, userSettingsModel) {
+                    user(app, authentication, $http, i18nLoader, userSettingsModel) {
                         const isAuth = Object.keys(authentication.user || {}).length > 0;
                         if (isAuth) {
                             i18nLoader.localizeDate();
                             return authentication.user;
-                        }
-
-                        const uid = secureSessionStorage.getItem(OAUTH_KEY + ':UID');
-
-                        if (uid) {
-                            $http.defaults.headers.common['x-pm-uid'] = uid;
-                        } else if (angular.isDefined(secureSessionStorage.getItem(OAUTH_KEY + ':SessionToken'))) {
-                            $http.defaults.headers.common['x-pm-uid'] = decodeUtf8Base64(
-                                secureSessionStorage.getItem(OAUTH_KEY + ':SessionToken') || ''
-                            );
-                            secureSessionStorage.setItem(OAUTH_KEY + ':UID', $http.defaults.headers.common['x-pm-uid']);
-                            secureSessionStorage.removeItem(OAUTH_KEY + ':SessionToken');
                         }
 
                         return authentication.fetchUserInfo().then((data) => {
@@ -480,9 +463,12 @@ export default angular
                         return premiumDomainModel.fetch();
                     }
                 },
-                onEnter(authentication) {
-                    // This will redirect to a login step if necessary
-                    authentication.redirectIfNecessary();
+                onEnter(AppModel, $state, authentication) {
+                    if (!authentication.isLoggedIn()) {
+                        return $state.go('login');
+                    }
+                    AppModel.set('isLoggedIn', true);
+                    AppModel.set('isSecure', true);
                 }
             })
 
@@ -892,7 +878,7 @@ export default angular
                 },
                 resolve: {
                     delinquent(user, isDelinquent) {
-                        return isDelinquent();
+                        return isDelinquent.testAndRedirect();
                     }
                 },
                 views: {
@@ -933,7 +919,7 @@ export default angular
                 views,
                 resolve: {
                     delinquent(user, isDelinquent) {
-                        return isDelinquent();
+                        return isDelinquent.testAndRedirect();
                     }
                 },
                 onEnter(AppModel) {
@@ -965,8 +951,7 @@ export default angular
 
         $urlRouterProvider.otherwise(($injector) => {
             const $state = $injector.get('$state');
-            const stateName = $injector.get('authentication').state() || 'secured.inbox';
-
+            const stateName = $injector.get('authentication').isLoggedIn() ? 'secured.inbox' : 'login';
             return $state.href(stateName);
         });
 

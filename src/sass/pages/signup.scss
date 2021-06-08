@@ -71,13 +71,14 @@
     align-items: center;
 }
 
-.signUpProcess-step-1  .usernameWrap .usernameInput { flex-grow: 1 }
-.signUpProcess-step-1  .usernameWrap .usernameDomain { padding: 0 5px }
+.signUpProcess-step-1  .usernameWrap .signupIframe-container {
+    width: 100%;
+}
 
 /* humanVerification */
 
 .humanVerification-wrapper {
-    width: 375px;
+    width: 505px;
     margin: 0px auto;
 }
 
@@ -104,7 +105,7 @@
 
 
 /* IFRAME */
-[class*='signUpProcess-step-'] iframe#pm_captcha {
+[class*='signUpProcess-step-'] .captchaView iframe {
     border: none;
     width: 100%;
     position: relative;
@@ -112,19 +113,6 @@
     height: 120px;
     overflow: hidden;
     z-index: 5;
-}
-
-[class*='signUpProcess-step-'] #captchaFrame {
-    position: relative;
-    .loading {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 4rem;
-        text-align: center;
-        z-index: 1;
-        display: block;
-    }
 }
 
 [class*='signUpProcess-step-'] .spinner.large {
@@ -146,6 +134,10 @@
     justify-content: center;
 }
 
+.signUpProcess-step-3 {
+    // margin-top: 0;
+    padding-top: 0;
+}
 
 /* RESPONSIVE */
 
@@ -174,4 +166,11 @@ body.appConfigBody-is-mobile {
         height: 4rem;
         line-height: 4rem;
     }
+}
+
+.signupForm-btn-help {
+    background: none;
+    border: none;
+    padding: 0;
+    text-decoration: underline;
 }

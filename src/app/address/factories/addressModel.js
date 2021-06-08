@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { ENCRYPTION_DEFAULT, PAID_ADMIN_ROLE, FREE_USER_ROLE } from '../../constants';
+import { DEFAULT_ENCRYPTION_CONFIG, PAID_ADMIN_ROLE, FREE_USER_ROLE } from '../../constants';
 
 /* @ngInject */
 function addressModel(
@@ -23,11 +23,12 @@ function addressModel(
     Address,
     authentication,
     addressWithoutKeysManager,
+    translator,
     dispatchers
 ) {
     const { dispatcher } = dispatchers(['addressModel', 'memberActions']);
 
-    const I18N = {
+    const I18N = translator(() => ({
         ERROR_DO_UPGRADE: gettextCatalog.getString(
             'You have used all addresses in your plan. Please upgrade your plan to add a new address',
             null,
@@ -55,7 +56,7 @@ function addressModel(
             null,
             'Error'
         )
-    };
+    }));
 
     const canAdd = (member = {}, redirect = true) => {
         const { MaxAddresses, UsedAddresses, HasKeys } = organizationModel.get() || {};
@@ -179,12 +180,12 @@ function addressModel(
      * @return {Promise}
      */
     const setup = ({ Domain, DisplayName, Signature }) => {
-        const numBits = ENCRYPTION_DEFAULT;
+        const encryptionConfigName = DEFAULT_ENCRYPTION_CONFIG;
         const passphrase = authentication.getPassword();
 
         return Address.setup({ Domain, DisplayName, Signature })
             .then(({ data = {} } = {}) => {
-                return generateKeyModel.generate({ numBits, passphrase, address: data.Address });
+                return generateKeyModel.generate({ encryptionConfigName, passphrase, address: data.Address });
             })
             .then(() => {
                 const promises = [eventManager.call(), pmDomainModel.fetch()];
@@ -226,11 +227,11 @@ function addressModel(
                 confirm() {
                     confirmModal.deactivate();
                     const promise = disableFirst(address)
-                        .then(() => Promise.all([eventManager.call(), Address.remove(address.ID)]))
+                        .then(() => Address.remove(address.ID))
+                        .then(eventManager.call)
                         .then(() => {
                             notification.success(I18N.SUCCESS_REMOVE);
-                        })
-                        .then(eventManager.call);
+                        });
 
                     networkActivityTracker.track(promise);
                 },

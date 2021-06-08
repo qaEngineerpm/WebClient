@@ -36,6 +36,24 @@
     white-space: nowrap;
 }
 
+.loginForm-actions-forgot-reset {
+    align-items: center;
+    & > * {
+        white-space: normal;
+    }
+    & .pm_button.small {
+        height: auto;
+        line-height: 1.5;
+    }
+}
+
+.loginForm-actions-row .pm_button {
+    max-width: 49%;
+}
+.loginForm-actions-row .pm_button:only-child {
+    max-width: 100%;
+}
+
 .loginForm-actions-main {
     width: 100%;
     font-weight: bold;
@@ -65,7 +83,6 @@
 }
 
 .loginForm-link-signup-button {
-    box-sizing: border-box;
     display: block;
     border: 1px solid $white;
     border-radius: $border-radius-large;

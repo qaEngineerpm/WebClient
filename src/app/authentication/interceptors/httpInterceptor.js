@@ -5,11 +5,12 @@ const {
     API_VERSION_INVALID,
     API_VERSION_BAD,
     API_OFFLINE,
-    HUMAN_VERIFICATION_REQUIRED
+    HUMAN_VERIFICATION_REQUIRED,
+    AUTH_AUTH_ACCOUNT_DISABLED
 } = API_CUSTOM_ERROR_CODES;
 
 /* @ngInject */
-function httpInterceptor($q, $injector, AppModel, networkUtils) {
+function httpInterceptor($q, $injector, AppModel, networkUtils, loggedOutSessions) {
     const STATE = {};
 
     const buildNotifs = () => {
@@ -43,6 +44,13 @@ function httpInterceptor($q, $injector, AppModel, networkUtils) {
     const notifyError = (error, message, options) => {
         // Disable the notification. Used for the SRP because we don't want to refactor it now.
         if (error.config && error.config.noNotify) {
+            return;
+        }
+        // When logging out, the default headers on the api get cleared. There could still be dangling API calls that are called after that.
+        // In this case the sent UID will be undefined.
+        const sentUID = error.config ? error.config.headers['x-pm-uid'] : undefined;
+        if (loggedOutSessions.hasUID(sentUID) || (error.status === 401 && sentUID === undefined)) {
+            error.noNotify = true;
             return;
         }
         // Set no notify for the network activity tracker to not display errors twice.
@@ -104,7 +112,12 @@ function httpInterceptor($q, $injector, AppModel, networkUtils) {
 
         if (errorCode === HUMAN_VERIFICATION_REQUIRED) {
             const handle9001 = $injector.get('handle9001');
-            return handle9001(error.config);
+            return handle9001(error.config, data);
+        }
+
+        if (errorCode === AUTH_AUTH_ACCOUNT_DISABLED) {
+            const handle10003 = $injector.get('handle10003');
+            return handle10003();
         }
 
         if (Array.isArray(config.suppress) && config.suppress.includes(errorCode)) {
@@ -145,6 +158,14 @@ function httpInterceptor($q, $injector, AppModel, networkUtils) {
             const unlockUser = $injector.get('unlockUser');
             const $http = $injector.get('$http');
             return unlockUser().then(() => $http(config));
+        }
+
+        if (status === 429 && !config.url.endsWith('api/auth')) {
+            const handle429 = $injector.get('handle429');
+            return handle429(error).catch((e) => {
+                handleCustomError(error);
+                return $q.reject(e);
+            });
         }
 
         if (status === 504) {

@@ -1,6 +1,5 @@
 const path = require('path');
 const env = require('./env/config');
-
 const BUILD_TARGET = !env.isDistRelease() ? 'build' : 'dist';
 
 /**
@@ -33,8 +32,7 @@ module.exports = {
         contentBase: path.resolve('./build')
     },
     entry: {
-        checkCompatApp: ['./src/checkCompatApp.js'],
-        app: ['./src/app/app.js']
+        index: ['./src/app/index.js']
     },
     resolve: {
         unsafeCache: true,
@@ -43,13 +41,15 @@ module.exports = {
             sass: path.resolve('./src/sass'),
             assets: path.resolve('./src/assets'),
             // Custom alias as we're building for the web (mimemessage)
-            iconv: 'iconv-lite'
+            iconv: 'iconv-lite',
+            // Ensure the same pmcrypto is used for pm-srp and angular if you symlink pm-srp to dev.
+            pmcrypto: path.resolve('./node_modules/pmcrypto')
         }
     },
     output: {
         path: path.resolve(`./${BUILD_TARGET}`),
-        filename: isEnvProduction ? '[name].[chunkhash:8].js' : '[name].js',
-        chunkFilename: isEnvProduction ? '[name].[chunkhash:8].chunk.js' : '[name].chunk.js',
+        filename: isEnvProduction ? '[name].[chunkhash:10].js' : '[name].js',
+        chunkFilename: isEnvProduction ? '[name].[chunkhash:10].chunk.js' : '[name].chunk.js',
         crossOriginLoading: 'anonymous'
     },
 

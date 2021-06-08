@@ -1,17 +1,17 @@
-import { isReceived } from '../../../helpers/message';
+import { isReceived, isReplied, isRepliedAll, isForwarded } from '../../../helpers/message';
 
 /* @ngInject */
-function printMessageModel($filter, gettextCatalog) {
-    const mapIcons = {
+function printMessageModel($filter, gettextCatalog, translator) {
+    const MAP_ICONS = {
         isReplied: 'fa-reply',
         isRepliedAll: 'fa-reply-all',
         isForwarded: 'fa-mail-forward'
     };
 
-    const I18N = {
+    const I18N = translator(() => ({
         received: gettextCatalog.getString('Received:', null, 'printed message info'),
         sent: gettextCatalog.getString('Sent:', null, 'printed message info')
-    };
+    }));
 
     /**
      * Helper to create a list from Array of email Object
@@ -26,10 +26,21 @@ function printMessageModel($filter, gettextCatalog) {
      * @return {Array} icons
      */
     const getIcons = (message = {}) => {
-        return ['isReplied', 'isRepliedAll', 'isForwarded'].reduce((acc, key) => {
-            if (message[key]()) {
-                acc.push(mapIcons[key]);
+        return [
+            {
+                name: 'isReplied',
+                callback: isReplied
+            },
+            {
+                name: 'isRepliedAll',
+                callback: isRepliedAll
+            },
+            {
+                name: 'isForwarded',
+                callback: isForwarded
             }
+        ].reduce((acc, { name, callback }) => {
+            callback(message) && acc.push(MAP_ICONS[name]);
             return acc;
         }, []);
     };

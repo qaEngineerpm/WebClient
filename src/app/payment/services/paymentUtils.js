@@ -6,16 +6,26 @@ import { isIE11 } from '../../../helpers/browser';
 const { MONTHLY, YEARLY, TWO_YEARS } = CYCLE;
 
 /* @ngInject */
-function paymentUtils(gettextCatalog, paymentModel, $state) {
-    const I18N = {
+function paymentUtils(gettextCatalog, paymentModel, $state, translator) {
+    const I18N = translator(() => ({
         cash: gettextCatalog.getString('Cash', null, 'Payment method'),
         card: gettextCatalog.getString('Credit Card', null, 'Payment method')
+    }));
+    const getLabel = (type, { Brand = '', Last4 = '', Payer = '' } = {}) => {
+        if (type === 'card') {
+            return `${Brand.toUpperCase()} •••• ${Last4}`;
+        }
+
+        if (type === 'paypal') {
+            return `PayPal ${Payer}`;
+        }
+
+        return '';
     };
-    const cardNumber = ({ Last4 = '' } = {}) => `•••• •••• •••• ${Last4}`;
     const formatMethods = (methods = []) => {
-        return methods.map(({ ID = '', Details = {} }) => ({
+        return methods.map(({ ID = '', Type, Details = {} }) => ({
             ID,
-            label: cardNumber(Details),
+            label: getLabel(Type, Details),
             value: 'use.card'
         }));
     };

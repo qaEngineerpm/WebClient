@@ -15,16 +15,10 @@ function blackFridayModalOpener(
     });
 
     const openModal = () => {
-        blackFridayModal.activate({
-            params: {
-                close() {
-                    blackFridayModal.deactivate();
-                }
-            }
-        });
+        blackFridayModal.activate();
     };
 
-    return () => {
+    return async () => {
         if (STATE.loading) {
             return STATE.loading;
         }
@@ -37,16 +31,17 @@ function blackFridayModalOpener(
         if (!STATE.hasData || currency !== STATE.currency) {
             STATE.hasData = false;
             STATE.currency = currency;
-
-            STATE.loading = blackFridayModel.getOffers(currency)
+            STATE.loading = blackFridayModel
+                .getOffers(currency)
                 .then(() => {
                     STATE.hasData = true;
                     STATE.loading = undefined;
                     openModal();
                 })
-                .catch(() => {
+                .catch((e) => {
                     STATE.currency = undefined;
                     STATE.loading = undefined;
+                    throw e;
                 });
 
             networkActivityTracker.track(STATE.loading);
@@ -55,8 +50,6 @@ function blackFridayModalOpener(
         }
 
         openModal();
-
-        return Promise.resolve();
     };
 }
 

@@ -1,5 +1,9 @@
 import _ from 'lodash';
+
 import { MAILBOX_IDENTIFIERS, ROW_MODE, COLUMN_MODE, CONVERSATION_VIEW_MODE } from '../../constants';
+
+import { isReplied, isRepliedAll, isForwarded } from '../../../helpers/message';
+
 /* @ngInject */
 function ElementsController(
     $log,
@@ -20,6 +24,7 @@ function ElementsController(
     markedScroll,
     forgeRequestParameters,
     removeElement,
+    cacheBase64,
     tools
 ) {
     const { on, unsubscribe, dispatcher } = dispatchers(['elements', 'messageActions', 'message.open']);
@@ -31,9 +36,39 @@ function ElementsController(
     }, MINUTE);
     const updateNumberElementChecked = (value) => ($scope.numberElementChecked = value);
 
+    const TYPE_ELEMENTS = tools.getTypeList();
+
     $scope.elementsLoaded = false;
     $scope.limitReached = false;
     $scope.conversations = [];
+
+    function hasLabels({ LabelIDs = [], Labels = [] }) {
+        return LabelIDs.length || Labels.length;
+    }
+    $scope.hasLabels = hasLabels;
+
+    const getTestClassNames = (element) => {
+        if (TYPE_ELEMENTS === 'message') {
+            return {
+                'element-is-replied': isReplied(element),
+                'element-is-repliedall': isRepliedAll(element),
+                'element-is-forwarded': isForwarded(element)
+            };
+        }
+    };
+
+    $scope.getClassNames = (element = {}, marked = {}) => {
+        return {
+            selected: element.Selected,
+            active: active(element),
+            marked: element.ID === marked.ID,
+            hasLabels: hasLabels(element),
+            read: isRead(element),
+            hasAttachments: hasAttachments(element),
+            expiring: element.ExpirationTime > 0,
+            ...getTestClassNames(element)
+        };
+    };
 
     /**
      * Method called at the initialization of this controller
@@ -116,6 +151,17 @@ function ElementsController(
     };
 
     $scope.displayType = displayType;
+
+    /**
+     * Check in LabelIDs and Labels to see if the conversation or message is starred
+     * @param {Object} item
+     */
+    function isStarred({ LabelIDs = [], Labels = [] }) {
+        if (Labels.length) {
+            return _.some(Labels, { ID: MAILBOX_IDENTIFIERS.starred });
+        }
+        return LabelIDs.some((label) => label === MAILBOX_IDENTIFIERS.starred);
+    }
 
     $scope.startWatchingEvent = () => {
         let isOpened = !!$state.params.id;
@@ -260,15 +306,29 @@ function ElementsController(
             $scope.unread();
         });
 
-        on('toggleStar', () => {
-            !isOpened && toggleStar();
-        });
+        on('toggleStar', toggleStar);
 
         function toggleStar() {
             const type = getTypeSelected();
-            getElementsSelected().forEach((model) => {
-                dispatcher.elements('toggleStar', { type, model });
-            });
+
+            const { unstar, star } = getElementsSelected().reduce(
+                (acc, model) => {
+                    const action = isStarred(model) ? 'unstar' : 'star';
+                    acc[action].push(model.ID);
+                    return acc;
+                },
+                { unstar: [], star: [] }
+            );
+
+            if (type === 'conversation') {
+                unstar.length && actionConversation.unstar(unstar);
+                star.length && actionConversation.star(star);
+            }
+
+            if (type === 'message') {
+                unstar.length && dispatcher.messageActions('unstar', { ids: unstar });
+                star.length && dispatcher.messageActions('star', { ids: star });
+            }
         }
 
         const markPrevious = onElement(() => {
@@ -459,33 +519,31 @@ function ElementsController(
      * @param {Object} element
      * @return {Boolean}
      */
-    $scope.active = (element) => {
+    function active(element) {
         if (AppModel.get('numberElementChecked') === 0 && angular.isDefined($state.params.id)) {
             return $state.params.id === element.ConversationID || $state.params.id === element.ID;
         }
 
         return false;
-    };
+    }
 
-    $scope.hasLabels = ({ LabelIDs = [], Labels = [] }) => LabelIDs.length || Labels.length;
-
-    $scope.hasAttachments = (element) => {
+    function hasAttachments(element) {
         if (element.ConversationID) {
             // is a message
             return element.NumAttachments > 0;
         }
         // is a conversation
         return element.ContextNumAttachments > 0;
-    };
+    }
 
-    $scope.isRead = (element) => {
+    function isRead(element) {
         if (element.ConversationID) {
             // is a message
             return element.Unread === 0;
         }
         // is a conversation
         return element.ContextNumUnread === 0;
-    };
+    }
 
     $scope.size = (element) => {
         if (element.ConversationID) {
@@ -535,28 +593,21 @@ function ElementsController(
         AppModel.set('numberElementChecked', _.filter($scope.conversations, { Selected: true }).length);
     };
 
-    function isStarred({ LabelIDs = [], Labels = [] }) {
-        if (LabelIDs.length) {
-            return _.includes(LabelIDs, MAILBOX_IDENTIFIERS.starred);
-        }
-        return _.some(Labels, { ID: MAILBOX_IDENTIFIERS.starred });
-    }
-
     /**
      * Return [Element] selected
      * @param {Boolean} includeMarked
      * @return {Array} elements
      */
     function getElementsSelected(includeMarked = true) {
+        if ($state.params.id && mailSettingsModel.get('ViewLayout') === ROW_MODE) {
+            const ID = $state.params.id;
+            const messageMode = tools.typeView() === 'message';
+            // We only test for the messageMode view as we will need the ConversationID
+            return [messageMode ? cache.getMessageCached(ID) : cache.getConversationCached(ID)];
+        }
+
         const { conversations = [] } = $scope; // conversations can contains message list or conversation list
         const elements = _.filter(conversations, { Selected: true });
-
-        if ($state.params.id && mailSettingsModel.get('ViewLayout') === ROW_MODE) {
-            return _.filter(
-                conversations,
-                ({ ID, ConversationID }) => ID === $state.params.id || ConversationID === $state.params.id
-            );
-        }
 
         if (!elements.length && $scope.markedElement && includeMarked) {
             return _.filter(
@@ -581,10 +632,9 @@ function ElementsController(
      * @return {String}
      */
     function getTypeSelected() {
-        const elementsSelected = getElementsSelected();
-
-        if (elementsSelected.length) {
-            return elementsSelected[0].ConversationID ? 'message' : 'conversation';
+        const [element] = getElementsSelected();
+        if (element) {
+            return element.ConversationID ? 'message' : 'conversation';
         }
         return tools.getTypeList();
     }
@@ -792,9 +842,9 @@ function ElementsController(
         }
         const route = $state.$current.name.replace('.element', '');
         $state.go(route + '.element', params);
+        cacheBase64.removeAll();
     }
 
-    // Call initialization
     initialization();
 }
 export default ElementsController;

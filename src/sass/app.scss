@@ -10,6 +10,7 @@
 
 //=== 🚀 Setup ==============================//
 //== Base
+@import "_border-box-reset.scss";
 @import "_addon.scss";
 @import "_functions";
 @import "_variables";
@@ -65,6 +66,7 @@
 @import "svg/locks";
 
 //=== 👉 UI Components =====================//
+@import "components/core/signupIframe";
 @import "ui/appVersion";
 @import "ui/appCopyright";
 @import "ui/atomLoader";
@@ -189,6 +191,7 @@
 //== Elements
 @import "components/element/elementView";
 @import "components/elements/countElementsSelected";
+@import "components/elements/statesElements";
 @import "components/elements/selectElement";
 @import "components/element/moveElement";
 @import "components/element/toolbarDesktop.scss";
@@ -205,6 +208,8 @@
 
 //== Contact
 @import "components/contact/contactActionHeader";
+@import "components/contact/attachGroupContactEmailsModal";
+@import "components/contact/removeContactListModal";
 @import "components/contact/autocompleteContactGroup";
 @import "components/contact/advancedSettingsBtn";
 @import "components/contact/contactGroupsOverview";
@@ -277,7 +282,6 @@
 @import "components/payments/payInvoiceModal";
 @import "components/payments/featuresList";
 @import "components/payments/bitcoinView";
-@import "components/payments/paypalView";
 @import "components/payments/donation";
 @import "components/payments/giftCode";
 

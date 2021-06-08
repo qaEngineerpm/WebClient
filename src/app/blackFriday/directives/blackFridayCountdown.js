@@ -1,12 +1,53 @@
-import { TIME } from '../../constants';
+import { TIME, BLACK_FRIDAY } from '../../constants';
+import { isBlackFriday, isBlackFridayExtension, isCyberMonday } from '../helpers/blackFridayHelper';
 
 /* @ngInject */
-function blackFridayCountdown() {
+function blackFridayCountdown(translator, gettextCatalog) {
+    const I18N = translator(() => ({
+        days(n) {
+            return gettextCatalog.getPlural(
+                n,
+                '{{$count}} day',
+                '{{$count}} days',
+                {},
+                'blackfriday X days before the end'
+            );
+        },
+        hours(n) {
+            return gettextCatalog.getPlural(
+                n,
+                '{{$count}} hour',
+                '{{$count}} hours',
+                {},
+                'blackfriday X hours before the end'
+            );
+        },
+        minutes(n) {
+            return gettextCatalog.getPlural(
+                n,
+                '{{$count}} minute',
+                '{{$count}} minutes',
+                {},
+                'blackfriday X minutes before the end'
+            );
+        },
+        seconds(n) {
+            return gettextCatalog.getPlural(
+                n,
+                '{{$count}} second',
+                '{{$count}} seconds',
+                {},
+                'blackfriday X seconds before the end'
+            );
+        },
+        expired: gettextCatalog.getString('Expired', null, 'blackfriday Info')
+    }));
+
     const render = (today, ts) => {
         const diff = moment(ts).diff(today);
 
         if (diff < 0) {
-            return 'Expired';
+            return I18N.expired;
         }
 
         const days = Math.floor(diff / TIME.DAY);
@@ -14,7 +55,7 @@ function blackFridayCountdown() {
         const minutes = Math.floor((diff % TIME.HOUR) / TIME.MINUTE);
         const seconds = Math.floor((diff % TIME.MINUTE) / TIME.SECOND);
 
-        return [`${days} d`, `${hours} h`, `${minutes} m`, `${seconds} s`].join(' : ');
+        return [I18N.days(days), I18N.hours(hours), I18N.minutes(minutes), I18N.seconds(seconds)].join(' | ');
     };
 
     return {
@@ -22,16 +63,27 @@ function blackFridayCountdown() {
         replace: true,
         templateUrl: require('../../../templates/blackFriday/blackFridayCountdown.tpl.html'),
         scope: {},
-        link(scope, el, { end = '' }) {
-            let timestamp = moment(end, 'YYYY-MM-DD').valueOf();
-            const today = moment(new Date());
+        link(scope, el) {
+            const refresh = () => {
+                const today = moment(new Date());
+                if (isBlackFriday()) {
+                    el[0].textContent = render(today, BLACK_FRIDAY.BETWEEN.CYBER_START);
+                    return;
+                }
+                if (isCyberMonday()) {
+                    el[0].textContent = render(today, BLACK_FRIDAY.BETWEEN.CYBER_END);
+                    return;
+                }
+                if (isBlackFridayExtension()) {
+                    el[0].textContent = render(today, BLACK_FRIDAY.BETWEEN.END);
+                    return;
+                }
+                el[0].textContent = I18N.expired;
+            };
 
-            el[0].textContent = render(today, timestamp);
+            refresh();
 
-            const id = setInterval(() => {
-                timestamp -= TIME.SECOND;
-                el[0].textContent = render(today, timestamp);
-            }, TIME.SECOND);
+            const id = setInterval(refresh, TIME.SECOND);
 
             scope.$on('$destroy', () => {
                 clearInterval(id);

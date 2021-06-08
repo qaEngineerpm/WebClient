@@ -4,9 +4,7 @@
     name="loginForm"
     class="pm_panel pm_panel-login alt pm_form loginForm-container"
     novalidate role="form"
-    autocomplete="on"
-    ng-submit="enterLoginPassword($event)"
-    action="login">
+    autocomplete="on">
     <div class="pm_panel-login__inner">
 
     <img src="assets/img/logo.png" height="20" alt="ProtonMail" class="logo" />
@@ -47,6 +45,7 @@
             <button
                 id="login_btn"
                 type="submit"
+                ng-disabled="loading"
                 class="loginForm-actions-main pm_button primary primary-white pull-right loginForm-btn-submit disabled-if-network-activity"
                 translate-context="Action"
                 translate>Login</button>
@@ -55,30 +54,20 @@
                 <span translate translate-context="Trouble logging in? Get help or try older version.">Trouble logging in? Get</span>
                 <button
                     class="loginForm-btn-help "
-                    ng-click="displayHelpModal()"
+                    data-action="help"
                     type="button"
                     translate-comment="Action"
                     translate-context="Trouble logging in? Get help or try older version."
-                    translate>help</button>
-
-                <span translate translate-context="Trouble logging in? Get help or try older version.">or try</span>
-
-                <a
-                    class="link loginForm-btn-oldversion"
-                    href="https://old.protonmail.com/login"
-                    target="_self"
-                    translate-comment="Action"
-                    translate-context="Trouble logging in? Get help or try older version."
-                    translate>older version</a>.
+                    translate>help</button>.
             </div>
 
             <div class="loginForm-actions-new-container">
-                <div class="loginForm-actions-new-title text-notransform h4 margin-top" translate-context="title" translate>
-                    New to ProtonMail?
-                </div>
+                <div class="loginForm-actions-new-title text-notransform h4 margin-top" translate-context="title" translate>New to ProtonMail?</div>
 
                 <div class="loginForm-actions-create-container margin-top">
-                    <signup-link class="loginForm-link-signup-button loginForm-actions-right margin-bottom"></signup-link>
+                    <link-website
+                        class="loginForm-link-signup-button loginForm-actions-right margin-bottom"
+                        data-link="signup"></link-website>
                 </div>
             </div>
 
@@ -86,9 +75,5 @@
         </div>
     </div>
 </div>
-<input type="hidden" id="hashed_pw" name="hashed_pw" />
-<div class="pm_panel-bottom text-notransform"><span translate translate-context="Want to test the latest features? Log in on BETA">Want to test the latest features? Log in on</span> <a href="https://beta.protonmail.com/" translate translate-context="Want to test the latest features? Log in on BETA">BETA</a>.</div>
-
-
 </form>
 

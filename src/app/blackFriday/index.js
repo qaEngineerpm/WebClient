@@ -9,7 +9,7 @@ export default angular
     .module('proton.blackFriday', [])
     .directive('blackFriday', blackFriday)
     .directive('blackFridayCountdown', blackFridayCountdown)
-    .factory('blackFridayHandler', blackFridayHandler)
     .factory('blackFridayModel', blackFridayModel)
+    .factory('blackFridayHandler', blackFridayHandler)
     .factory('blackFridayModalOpener', blackFridayModalOpener)
     .factory('blackFridayModal', blackFridayModal).name;

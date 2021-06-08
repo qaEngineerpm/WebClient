@@ -6,11 +6,6 @@
 	border-bottom: 1px solid rgba($border, .1);
 }
 
-.dropdown-label-title > p {
-	height: 11px;
-	line-height: 14px;
-}
-
 .dropdown-label-search {
 	@include flexRow();
 	@include flexAlignCenter();
@@ -93,7 +88,11 @@
 
 .dropdown-label-apply {
 	width: 100%;
-	margin-bottom: 10px;
+    margin-bottom: 10px;
+}
+.pm_dropdown .dropdown-label-apply {
+    display: block;
+    text-align: center;
 }
 
 .dropdown-label-container.dropdown-label-hasLabels .alert-info,
@@ -109,7 +108,6 @@
 		.scrollbox-container-group-item {
 			height: 45px;
 			padding: 0 10px;
-			box-sizing: border-box;
 			border: 1px solid $border;
 			margin-bottom: 5px;
 		}

@@ -183,6 +183,8 @@ function Payment($http, authentication, url, brick, paymentPlansFormator) {
         });
     };
 
+    const latestSubscription = () => response($http.get(requestUrl('subscription', 'latest')));
+
     /**
      * Validate a subscription
      */
@@ -218,7 +220,14 @@ function Payment($http, authentication, url, brick, paymentPlansFormator) {
 
     const btc = (Amount, Currency) => $http.post(requestUrl('bcinfo'), { Amount, Currency });
 
+    const createToken = (data) => response($http.post(requestUrl('tokens'), data));
+    const getTokenStatus = (paymentToken) => response($http.get(requestUrl('tokens', paymentToken)));
+    const forceTokenUpdate = (paymentToken) => response($http.put(requestUrl('tokens', paymentToken)));
+
     return {
+        createToken,
+        getTokenStatus,
+        forceTokenUpdate,
         credit,
         donate,
         paypal,
@@ -240,7 +249,8 @@ function Payment($http, authentication, url, brick, paymentPlansFormator) {
         subscribe,
         unsubscribe,
         delete: destroy,
-        btc
+        btc,
+        latestSubscription
     };
 }
 export default Payment;

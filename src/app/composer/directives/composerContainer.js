@@ -60,7 +60,7 @@ function composerContainer(authentication, composerRender, composerLoader, dispa
                         const message = _.find(scope.messages, { focussed: true });
 
                         if (hasHotkeys && message) {
-                            scope.close(message, false, true); // message, discard, save
+                            scope.saveAndClose(message);
                         }
 
                         break;
@@ -68,6 +68,10 @@ function composerContainer(authentication, composerRender, composerLoader, dispa
 
                     case 'close':
                         openClose(type, data);
+                        break;
+
+                    case 'refresh':
+                        renderList(data);
                         break;
 
                     case 'editor.loaded':

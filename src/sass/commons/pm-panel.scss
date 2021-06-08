@@ -2,7 +2,6 @@
 	width: $panel;
 	margin: auto;
 	color: $white;
-	box-sizing: border-box;
 	padding: 50px;
 	max-width: 100%;
 	&.alt {
@@ -13,7 +12,6 @@
 		margin-top: 8rem;
 		margin-bottom: 2rem;
 		padding: 50px 44px 0 44px;
-		box-sizing: border-box;
 		min-height: 350px;
         a { color: $white }
         &.pm_panel--twofactors {
@@ -53,8 +51,8 @@ body.light {
 body.appConfigBody-is-mobile {
 	.pm_panel {
         width: auto;
-        max-width: 500px;
-		padding: 0 !important;
+        max-width: $panel;
+		padding: 15px 20px;
         margin-top: 2rem;
 
         &-bottom {
@@ -85,8 +83,7 @@ body.appConfigBody-is-mobile {
 #support-reset-password,
 #support-message {
 	.wrap {
-		width: $panel;
+		max-width: $panel;
 		margin: 2rem auto;
-		box-sizing: border-box;
 	}
 }

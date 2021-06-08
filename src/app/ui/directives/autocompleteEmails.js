@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { REGEX_EMAIL, MESSAGE_MAX_RECIPIENTS } from '../../constants';
+import { REGEX_EMAIL } from '../../constants';
 
 /* @ngInject */
 function autocompleteEmails(
@@ -10,7 +10,8 @@ function autocompleteEmails(
     dispatchers,
     gettextCatalog,
     composerContactGroupSelection,
-    notification
+    notification,
+    translator
 ) {
     const TAB_KEY = 9;
     const BACKSPACE_KEY = 8;
@@ -18,14 +19,7 @@ function autocompleteEmails(
     const ESCAPE_KEY = 27;
     const THROTTLE_TIMEOUT = 300;
 
-    const I18N = {
-        langRecipientLimit(total) {
-            return gettextCatalog.getString(
-                'The maximum number ({{total}}) of Recipients is {{limit}}.',
-                { total, limit: MESSAGE_MAX_RECIPIENTS },
-                'Error'
-            );
-        },
+    const I18N = translator(() => ({
         failedToFetch(list = []) {
             return gettextCatalog.getString(
                 'Failed to get key information for {{emails}}. Removing from recipient list. Please try again.',
@@ -33,7 +27,7 @@ function autocompleteEmails(
                 'Error'
             );
         }
-    };
+    }));
 
     /**
      * Get the selected input value configuration
@@ -111,7 +105,7 @@ function autocompleteEmails(
             );
     };
 
-    const link = (scope, el, { awesomplete }) => {
+    const link = (scope, el, { awesomplete, attr }) => {
         const { dispatcher, on, unsubscribe } = dispatchers(['composer.update', 'autocompleteEmails']);
 
         scope.emails = [];
@@ -134,9 +128,18 @@ function autocompleteEmails(
                 scope.emails = emails;
                 scope.list = emails;
                 updateScroll();
-                // NOTE: the main purpose of this is to update the tooltip in the lock directive since we don't use $watch.
-                // Needs to be done in a rAF because otherwise when '$on' is triggered the scope has not been fully updated yet.
-                _rAF(() => dispatcher.autocompleteEmails('refresh', { messageID: scope.message.ID, emails }));
+                /*
+                    NOTE: the main purpose of this is to update the tooltip in the lock directive since we don't use $watch.
+                    Needs to be done in a rAF because otherwise when '$on' is triggered the scope has not been fully updated yet.
+                 */
+                _rAF(() => {
+                    scope.$applyAsync(() => {
+                        dispatcher.autocompleteEmails('refresh', {
+                            messageID: scope.message.ID,
+                            emails
+                        });
+                    });
+                });
             });
         };
 
@@ -152,6 +155,11 @@ function autocompleteEmails(
             const list = modelExtender.extendFromCache(config.emails);
 
             setEmails(config.contactGroups.concat(list));
+        };
+
+        const removeGroup = (Address) => {
+            const cache = composerContactGroupSelection(scope.message.ID);
+            cache.remove(Address);
         };
 
         /**
@@ -191,6 +199,21 @@ function autocompleteEmails(
         const syncModel = _.throttle(updateModel, THROTTLE_TIMEOUT);
         syncModel();
 
+        /**
+         * Remove an item from the list of emails ([<icon> email <button>]...)
+         * @param  {String} options.address Address to remove
+         * @param  {String} options.key     Type of list (CCList, ToList, BCCList)
+         * @return {void}
+         */
+        function removeItem({ address, key }) {
+            // Ensure we remove the address in the right list
+            if (attr.key === key) {
+                model.removeByAddress(address);
+                removeGroup(address);
+                syncModel();
+            }
+        }
+
         on('contacts', (event, { type }) => {
             if (type !== 'contactEvents' && type !== 'contactUpdated') {
                 return;
@@ -205,42 +228,31 @@ function autocompleteEmails(
             syncModel();
         });
 
-        on('composer.update', (event, { type, data: { message = { ID: null } } = {} }) => {
+        on('composer.update', (e, { type, data: { message = { ID: null } } = {} }) => {
             if (type !== 'close.panel' || message.ID !== scope.message.ID) {
                 return;
             }
             syncModel();
         });
-        on('squire.messageSign', (event, { data: { messageID } }) => {
+
+        on('squire.messageSign', (e, { data: { messageID } }) => {
             if (messageID !== scope.message.ID) {
                 return;
             }
             syncModel();
         });
-        on('recipient.update', (event, { data: { messageID, oldAddress, Address, Name } }) => {
+
+        on('recipient.update', (e, { type, data: { messageID, oldAddress, Address, Name, key, remove = {} } }) => {
             if (messageID !== scope.message.ID) {
                 return;
             }
-            model.updateEmail(oldAddress, Address, Name);
-            syncModel();
-        });
-
-        /**
-         * We need to check the limit here. Otherwise autocompleteEmails can overflow the API (for PGP status testing).
-         */
-        const checkMessageLimit = (numberToAdd = 1) => {
-            const { ToList, CCList, BCCList } = scope.message;
-            const total = ToList.length + CCList.length + BCCList.length + numberToAdd;
-            if (total > MESSAGE_MAX_RECIPIENTS) {
-                notification.error(I18N.langRecipientLimit(total));
-                return false;
+            if (type === 'update' && attr.key === key) {
+                model.updateEmail(oldAddress, Address, Name);
+                syncModel();
             }
-            return true;
-        };
 
-        const resetValue = (target, emails) => {
-            target.value = emails.length ? emails[0] : '';
-        };
+            type === 'remove' && removeItem(remove);
+        });
 
         const onInput = ({ target }) => {
             // Only way to clear the input if you add a comma.
@@ -252,10 +264,6 @@ function autocompleteEmails(
              */
             if (target.value && isSplitable(target.value)) {
                 const emails = splitEmails(target.value);
-                if (!checkMessageLimit(emails.length)) {
-                    resetValue(target, emails);
-                    return;
-                }
                 emails.forEach((value) => model.add({ label: value, value }));
                 syncModel();
                 return _rAF(() => ((awesomplete.input.value = ''), awesomplete.input.focus()));
@@ -276,20 +284,12 @@ function autocompleteEmails(
             }
         };
 
-        const removeGroup = (Address) => {
-            const cache = composerContactGroupSelection(scope.message.ID);
-            cache.remove(Address);
-        };
-
         const onClick = ({ target }) => {
             // Reset autocomplete to work only after 1 letter
             awesomplete.minChars = 1;
 
             if (target.classList.contains('autocompleteEmails-btn-remove')) {
-                const { address } = target.dataset;
-                model.removeByAddress(address);
-                removeGroup(address);
-                return syncModel();
+                return removeItem(target.dataset);
             }
 
             /**
@@ -312,12 +312,10 @@ function autocompleteEmails(
          */
         const onSubmit = (e) => {
             e.preventDefault();
+
             const { value, clear } = getFormValue(e.target);
 
             if (value) {
-                if (!checkMessageLimit()) {
-                    return;
-                }
                 model.add(getConfigEmailInput(model, value));
                 clear();
                 syncModel();
@@ -377,9 +375,6 @@ function autocompleteEmails(
          * Update the model when an user select an option
          */
         awesomplete.replace = function replace(opt) {
-            if (!checkMessageLimit()) {
-                return;
-            }
             model.add(opt);
             this.input.value = '';
             syncModel();

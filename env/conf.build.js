@@ -2,15 +2,24 @@ const bindPrefix = (name) => `node_modules/${name}`;
 
 module.exports = {
     externalFiles: {
-        openpgp: ['openpgp/dist/openpgp.min.js', 'openpgp/dist/compat/openpgp.min.js'].map(bindPrefix),
-        openpgp_workers: ['openpgp/dist/openpgp.worker.min.js', 'openpgp/dist/compat/openpgp.worker.min.js'].map(
-            bindPrefix
-        ),
+        openpgp: ['openpgp/dist/lightweight/openpgp.min.js', 'openpgp/dist/compat/openpgp.min.js'].map(bindPrefix),
+        openpgpElliptic: bindPrefix('openpgp/dist/lightweight/elliptic.min.js'),
+        openpgpWorker: bindPrefix('openpgp/dist/lightweight/openpgp.worker.min.js'),
+        formgenerator: bindPrefix('pt-formgenerator/dist'),
         list: ['.htaccess', 'manifest.json', 'robots.txt']
     },
     babel: {
-        excludedFiles: ['mailparser.js', 'checkCompatApp.js'],
-        includedNodeModules: ['asmcrypto.js', 'pmcrypto', 'sieve.js', 'angular-ui-codemirror']
+        excludedFiles: ['mailparser.js'],
+        includedNodeModules: [
+            'asmcrypto.js',
+            'pmcrypto',
+            'proton-shared',
+            'pm-srp',
+            'get-random-values',
+            'pt-formgenerator',
+            'sieve.js',
+            'angular-ui-codemirror'
+        ]
     },
     vendor_files: {
         css: [

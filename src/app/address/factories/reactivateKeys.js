@@ -1,5 +1,7 @@
-import _ from 'lodash';
 import { encryptPrivateKey, decryptPrivateKey } from 'pmcrypto';
+
+import { MAIN_KEY } from '../../constants';
+import { computeKeyPasswordWithFallback } from '../../../helpers/passwordsHelper';
 
 /* @ngInject */
 function reactivateKeys(
@@ -10,15 +12,12 @@ function reactivateKeys(
     keysModel,
     eventManager,
     gettextCatalog,
-    passwords,
-    dispatchers
+    translator
 ) {
     const FAILED_DECRYPTION_PASSWORD = 1;
     const FAILED_KEY_REACTIVATE = 2;
 
-    const { dispatcher } = dispatchers(['keys']);
-
-    const I18N = {
+    const I18N = translator(() => ({
         success: {
             one: gettextCatalog.getString('Key reactivated', null, 'Info'),
             many: (n) => gettextCatalog.getString('{{n}} keys reactivated', { n }, 'Info')
@@ -26,19 +25,22 @@ function reactivateKeys(
         errors: {
             [FAILED_DECRYPTION_PASSWORD]: {
                 one: gettextCatalog.getString('Incorrect decryption password', null, 'Error'),
-                many: (n) =>
-                    gettextCatalog.getString(
+                many(n) {
+                    return gettextCatalog.getString(
                         '{{n}} keys failed to decrypt due to an incorrect password',
                         { n },
                         'Error'
-                    )
+                    );
+                }
             },
             [FAILED_KEY_REACTIVATE]: {
                 one: gettextCatalog.getString('Failed to reactivate key', null, 'Error'),
-                many: (n) => gettextCatalog.getString('{{n}} keys failed to reactivate', { n }, 'Error')
+                many(n) {
+                    return gettextCatalog.getString('{{n}} keys failed to reactivate', { n }, 'Error');
+                }
             }
         }
-    };
+    }));
 
     /**
      * Get the text from based on the results.
@@ -91,87 +93,115 @@ function reactivateKeys(
         );
     };
 
-    const process = async (keys = [], oldPassword, { contact, address } = {}) => {
-        const { data = {} } = await Key.salts();
-        const salts = _.reduce(
-            keys,
-            (acc, key) => {
-                const { KeySalt } = _.find(data.KeySalts, { ID: key.ID }) || {};
+    /**
+     * Reactivate a key by decrypting with the old password, re-encrypting with the new password
+     * and uploading it. Catches all failures.
+     * @returns {Promise}
+     */
+    const reactivateKey = async ({ addressID, salt, key, password, oldPassword }) => {
+        try {
+            const { ID: keyID, PrivateKey } = key;
+            const keyPassword = await computeKeyPasswordWithFallback(oldPassword, salt);
+            const decryptedPrivateKey = await decryptPrivateKey(PrivateKey, keyPassword);
+            const encryptedPrivateKey = await encryptPrivateKey(decryptedPrivateKey, password);
+            const SignedKeyList = await keysModel.signedKeyList(addressID, {
+                mode: 'create',
+                decryptedPrivateKey,
+                encryptedPrivateKey
+            });
+            const data =
+                (await Key.reactivate(keyID, {
+                    PrivateKey: encryptedPrivateKey,
+                    SignedKeyList
+                })) || {};
 
-                // KeySalt can be an empty string
-                acc.push({ KeySalt, key });
+            key.decrypted = true;
 
-                return acc;
-            },
-            []
-        );
-        const password = authentication.getPassword();
-
-        /**
-         * Reactivate a key by decrypting with the old password, re-encrypting with the new password
-         * and uploading it. Catches all failures.
-         * @returns {Promise}
-         */
-        const reactivateKey = async ({ KeySalt, key }) => {
-            try {
-                const keyPassword = await passwords.computeKeyPassword(oldPassword, KeySalt);
-                const decryptedKey = await decryptPrivateKey(key.PrivateKey, keyPassword);
-                const privateKey = await encryptPrivateKey(decryptedKey, password);
-                const SignedKeyList = await keysModel.signedKeyList(address.addressID, {
-                    mode: 'create',
-                    keyID: key.ID,
-                    privateKey: decryptedKey
-                });
-                // Update the key in the API.
-                const data = (await Key.reactivate(key.ID, { PrivateKey: privateKey, SignedKeyList })) || {};
-
-                key.decrypted = true;
-
-                return data;
-            } catch (e) {
-                if (e instanceof Error) {
-                    return {
-                        error: FAILED_DECRYPTION_PASSWORD,
-                        key
-                    };
-                }
+            return data;
+        } catch (e) {
+            if (e instanceof Error) {
                 return {
-                    error: FAILED_KEY_REACTIVATE,
+                    error: FAILED_DECRYPTION_PASSWORD,
                     key
                 };
             }
-        };
-
-        // Reactivate all the keys.
-        const promises = salts.map(reactivateKey);
-        const result = await Promise.all(promises);
-
-        eventManager.call();
-
-        // Summarize the results and get the texts to return.
-        const summary = getSummary(result);
-        const output = {
-            success: getText(I18N.success, summary.success, promises),
-            failed: getErrorText(summary.failed)
-        };
-        dispatcher.keys('reactivate', { output, contact });
-
-        return output;
+            return {
+                error: FAILED_KEY_REACTIVATE,
+                key
+            };
+        }
     };
 
     /**
-     * Returns keys not decrypted from user (contact) and addresses
+     * Reactivate the requested keys with the password
+     * @param {Array} addressesWithKeys
+     * @param {String} oldPassword
+     * @return {Promise}
+     */
+    const process = async (addressesWithKeys = [], oldPassword) => {
+        const { KeySalts = [] } = await Key.salts();
+        const keySalts = KeySalts.reduce((acc, { ID, KeySalt }) => {
+            acc[ID] = KeySalt;
+            return acc;
+        }, {});
+        const password = authentication.getPassword();
+
+        // Reactivate all the keys.
+        const toActivate = addressesWithKeys.reduce((acc, { addressID, keys }) => {
+            const keyArguments = keys.map((key) => {
+                return {
+                    addressID,
+                    salt: keySalts[key.ID],
+                    key,
+                    password,
+                    oldPassword
+                };
+            });
+
+            return acc.concat(keyArguments);
+        }, []);
+
+        const result = [];
+
+        for (let i = 0; i < toActivate.length; ++i) {
+            result.push(await reactivateKey(toActivate[i]));
+            await eventManager.call();
+        }
+
+        // Summarize the results and get the texts to return.
+        const summary = getSummary(result);
+        return {
+            success: getText(I18N.success, summary.success, toActivate),
+            failed: getErrorText(summary.failed)
+        };
+    };
+
+    /**
+     * Returns non-decrypted keys for all addresses.
+     * E.g. [{ addressID: '0', keys: [list of non-decrypted keys]}]
      * @return {Promise<Array>}
      */
     const get = async () => {
         const { Keys: userKeys = [] } = authentication.user;
         const addresses = addressesModel.get();
         const addressKeysView = await addressKeysViewModel.getAddressKeys(addresses);
-        const addressKeys = addressKeysView.reduce((acc, { keys = [] }) => {
-            return acc.concat(keys);
-        }, []);
+        const userAddressWithKeys = {
+            addressID: MAIN_KEY,
+            keys: userKeys
+        };
 
-        return userKeys.concat(addressKeys).filter(({ decrypted }) => !decrypted);
+        const filterDecrypted = ({ decrypted }) => !decrypted;
+
+        return addressKeysView.concat(userAddressWithKeys).reduce((acc, { keys = [], ...rest }) => {
+            const nonDecryptedKeys = keys.filter(filterDecrypted);
+            if (!nonDecryptedKeys.length) {
+                return acc;
+            }
+            return acc.concat({
+                keys: nonDecryptedKeys,
+                ...rest
+            });
+        }, []);
     };
 
     return { process, get };

@@ -41,7 +41,6 @@ function contactList($filter, dispatchers, $state, $stateParams, contactCache, h
 
                 // Focus the checkbox to toggle it with the "space" key
                 if ($row[0]) {
-
                     // Ensure we run the $digest to refesh isActive
                     scope.$applyAsync(() => {
                         isCurrentActive && $row[0].classList.add(CLASSNAMES.ACTIVE);
@@ -112,6 +111,7 @@ function contactList($filter, dispatchers, $state, $stateParams, contactCache, h
 
                     lastChecked = contact;
                 }
+
                 dispatcher.contacts('selectContacts', { contactIDs, isChecked });
             };
 
@@ -122,41 +122,42 @@ function contactList($filter, dispatchers, $state, $stateParams, contactCache, h
                 });
             };
 
-            const onNextPrevElement = (type) => _.throttle(() => {
-                const index = _.findIndex(scope.contacts, { ID: MODEL.cursorID }) || 0;
-                const pos = type === 'DOWN' ? index + 1 : index - 1;
+            const onNextPrevElement = (type) =>
+                _.throttle(() => {
+                    const index = _.findIndex(scope.contacts, { ID: MODEL.cursorID }) || 0;
+                    const pos = type === 'DOWN' ? index + 1 : index - 1;
 
-                // Last item
-                if (type === 'DOWN' && pos === scope.contacts.length) {
-                    return;
-                }
-
-                // First item
-                if (type === 'UP' && pos < 0) {
-                    return;
-                }
-
-                const { ID } = scope.contacts[pos];
-                const $items = element.find(`.${CLASSNAMES.ITEM}`);
-                const $row = $items.has(`[data-contact-id="${unescape(MODEL.cursorID)}"]`);
-                setContactCursor(ID, $items);
-
-                if ($row.offset()) {
-                    if ($row.offset().top > element[0].clientHeight) {
-                        element[0].scrollTop += $items.height();
-                    } else if ($row.offset().top < HEADER_HEIGHT + $items.height()) {
-                        element[0].scrollTop -= $items.height();
+                    // Last item
+                    if (type === 'DOWN' && pos === scope.contacts.length) {
+                        return;
                     }
-                } else {
-                    element.animate(
-                        { scrollTop: pos * $items.height() - HEADER_HEIGHT },
-                        {
-                            duration: 500,
-                            complete: () => setContactCursor(ID)
+
+                    // First item
+                    if (type === 'UP' && pos < 0) {
+                        return;
+                    }
+
+                    const { ID } = scope.contacts[pos];
+                    const $items = element.find(`.${CLASSNAMES.ITEM}`);
+                    const $row = $items.has(`[data-contact-id="${unescape(MODEL.cursorID)}"]`);
+                    setContactCursor(ID, $items);
+
+                    if ($row.offset()) {
+                        if ($row.offset().top > element[0].clientHeight) {
+                            element[0].scrollTop += $items.height();
+                        } else if ($row.offset().top < HEADER_HEIGHT + $items.height()) {
+                            element[0].scrollTop -= $items.height();
                         }
-                    );
-                }
-            }, 50);
+                    } else {
+                        element.animate(
+                            { scrollTop: pos * $items.height() - HEADER_HEIGHT },
+                            {
+                                duration: 500,
+                                complete: () => setContactCursor(ID)
+                            }
+                        );
+                    }
+                }, 50);
 
             function onClick(e) {
                 const { target, shiftKey } = e;
@@ -189,7 +190,7 @@ function contactList($filter, dispatchers, $state, $stateParams, contactCache, h
             const openContact = () => {
                 $state.go('secured.contacts.details', { id: MODEL.cursorID });
 
-                hotkeys.bind('mod+s');
+                hotkeys.bind(['mod+s']);
                 // We don't need to check these events if we didn't choose to focus onto a specific message
                 hotkeys.unbind(['down', 'up']);
             };
@@ -217,12 +218,7 @@ function contactList($filter, dispatchers, $state, $stateParams, contactCache, h
                 hotkeys.unbind(['mod+s']);
             });
 
-            // Move to trash
             on('hotkeys', (e, { type, data: { to } }) => {
-                if (type === 'move' && to === 'trash' && MODEL.cursorID) {
-                    dispatcher.contacts('deleteContacts', { contactIDs: [MODEL.cursorID] });
-                }
-
                 if (type === 'move' && to === 'archive') {
                     dispatcher.contacts('addContact');
                 }
@@ -238,6 +234,10 @@ function contactList($filter, dispatchers, $state, $stateParams, contactCache, h
                 if (type === 'close') {
                     hotkeys.bind(['down', 'up']);
                 }
+            });
+
+            on('$stateChangeSuccess', (event, toState) => {
+                contactCache.unSelectOnStateChange(toState);
             });
 
             scope.$on('$destroy', () => {

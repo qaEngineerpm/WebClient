@@ -1,7 +1,7 @@
 import humanVerification from './directives/humanVerification';
 import signupCreationProcess from './directives/signupCreationProcess';
 import signupHumanForm from './directives/signupHumanForm';
-import signupLink from './directives/signupLink';
+import linkWebsite from './directives/linkWebsite';
 import addressesSelector from './directives/addressesSelector';
 import addressesSection from './directives/addressesSection';
 import pmSignatureToggle from './directives/pmSignatureToggle';
@@ -9,7 +9,7 @@ import identitySection from './directives/identitySection';
 import signupPayForm from './directives/signupPayForm';
 import signupStepLink from './directives/signupStepLink';
 import signupUserForm from './directives/signupUserForm';
-import storageWarningView from './directives/storageWarning';
+import storageWarningView from './directives/storageWarningView';
 import usernameDomain from './directives/usernameDomain';
 import usernamePassword from './directives/usernamePassword';
 import displayNameSignature from './directives/displayNameSignature';
@@ -24,18 +24,22 @@ import attachSignupSubscription from './services/attachSignupSubscription';
 import isDelinquent from './services/isDelinquent';
 import manageUser from './services/manageUser';
 import signupModel from './services/signupModel';
+import setPaidCookie from './services/setPaidCookie';
 import signupUserProcess from './services/signupUserProcess';
 import userType from './services/userType';
 import needUpgrade from './services/needUpgrade';
+import iframeVerifWizard from './services/iframeVerifWizard';
 
 export default angular
     .module('proton.user', [])
+    .factory('iframeVerifWizard', iframeVerifWizard)
     .factory('needUpgrade', needUpgrade)
     .service('userType', userType)
+    .factory('setPaidCookie', setPaidCookie)
     .directive('humanVerification', humanVerification)
     .directive('signupCreationProcess', signupCreationProcess)
     .directive('signupHumanForm', signupHumanForm)
-    .directive('signupLink', signupLink)
+    .directive('linkWebsite', linkWebsite)
     .directive('addressesSelector', addressesSelector)
     .directive('addressesSection', addressesSection)
     .directive('pmSignatureToggle', pmSignatureToggle)

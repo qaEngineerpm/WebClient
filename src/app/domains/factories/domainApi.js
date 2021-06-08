@@ -1,5 +1,5 @@
 /* @ngInject */
-function domainApi($http, gettextCatalog, url) {
+function domainApi($http, url) {
     const requestURL = url.build('domains');
 
     const handleResult = ({ data = {} } = {}) => data;
@@ -15,7 +15,7 @@ function domainApi($http, gettextCatalog, url) {
     /**
      * Return the list of domains available during the signing process
      */
-    const available = () => $http.get(requestURL('available')).then(handleResult);
+    const available = (params) => $http.get(requestURL('available'), params).then(handleResult);
     /**
      * Get premium domains
      */

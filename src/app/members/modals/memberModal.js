@@ -1,16 +1,16 @@
 import _ from 'lodash';
 
-import { BASE_SIZE, ENCRYPTION_DEFAULT } from '../../constants';
+import { BASE_SIZE, DEFAULT_ENCRYPTION_CONFIG } from '../../constants';
 
 const GIGA = BASE_SIZE ** 3;
 
 /* @ngInject */
-function memberModal(pmModal, gettextCatalog, organizationModel, subscriptionModel, editMemberProcess) {
-    const I18N = {
+function memberModal(pmModal, gettextCatalog, organizationModel, subscriptionModel, editMemberProcess, translator) {
+    const I18N = translator(() => ({
         USED: gettextCatalog.getString('Already used', null, 'Memory info'),
         ALLOCATED: gettextCatalog.getString('Allocated', null, 'Memory info'),
         ALREADY_ALLOCATED: gettextCatalog.getString('Already allocated', null, 'Memory info')
-    };
+    }));
 
     const getConfigKeys = ({ member = {} }) => {
         const fiveGigabit = 5 * GIGA;
@@ -33,7 +33,7 @@ function memberModal(pmModal, gettextCatalog, organizationModel, subscriptionMod
 
             this.ID = null;
             this.step = 'member';
-            this.size = ENCRYPTION_DEFAULT;
+            this.encryptionConfigName = DEFAULT_ENCRYPTION_CONFIG;
             this.organization = params.organization;
             this.organizationKey = params.organizationKey;
             this.domains = _.filter(params.domains, ({ State }) => State);
@@ -43,6 +43,7 @@ function memberModal(pmModal, gettextCatalog, organizationModel, subscriptionMod
             this.confirmPassword = '';
             this.address = '';
             this.cancel = params.cancel;
+            this.size = this.encryptionConfigName;
 
             // sliders legends
             const allocatedLegend = { label: I18N.ALLOCATED, classes: 'background-primary' };
