@@ -114,7 +114,7 @@
     "jquery-timepicker": "github:KAYLukas/timepicker.git#patch-1",
     "jquery.payment": "^3.0.0",
     "jszip": "^3.1.4",
-    "juice": "^5.0.1",
+    "juice": "^7.0.0",
     "linkify-it": "^2.0.3",
     "lodash": "^4.17.11",
     "malihu-custom-scrollbar-plugin": "github:ProtonMail/malihu-custom-scrollbar-plugin.git#feat/fixUpdateTimeout",
